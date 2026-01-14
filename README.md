@@ -12,9 +12,32 @@ MG AFK connects to the game's WebSocket endpoint. You must provide your Discord
 Incoming data is formatted and displayed in the interface (status, ability logs,
 shops, pet hunger).
 
+## How to get your `mc_jwt` token
+
+The easiest way is to use a browser extension that can read cookies:
+
+- Chrome: **Get cookies.txt (Clean)**  
+  https://chromewebstore.google.com/detail/get-cookiestxt-clean/ahmnmhfbokciafffnknlekllgcnafnie
+- Firefox: **Get Cookies**  
+  https://addons.mozilla.org/en-US/firefox/addon/get_cookies/
+
+Steps:
+1) Install the extension.
+2) Open Magic Garden (or the Discord activity) in your browser and log in.
+3) Use the extension to list the cookies for the site.
+4) Find the cookie named **`mc_jwt`**. It should start with something like **`eyJh...`**
+   and it is very long.
+5) Copy its value and paste it into MG AFK.
+
+Manual method (no extension):
+1) Open Magic Garden in your browser and log in.
+2) Press `F12` to open DevTools.
+3) Go to **Application** → **Cookies** → `https://magicgarden.gg`.
+4) Copy the value of the **`mc_jwt`** cookie.
+
 ## Screenshot
 
-![MG AFK UI](https://prnt.sc/H8dxuFMFAMhv)
+![MG AFK UI](https://prnt.sc/N1eUKf1A5PLs)
 
 ### Reconnect on (Superseded)
 

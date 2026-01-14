@@ -122,10 +122,17 @@ body::after {
 
 .top-actions {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  flex-direction: row;
+  align-items: center;
   margin-left: auto;
   gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.top-actions .hint {
+  flex-basis: 100%;
+  text-align: right;
 }
 
 .hero h1 {

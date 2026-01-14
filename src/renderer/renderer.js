@@ -26,6 +26,7 @@ const petCard = document.getElementById('petCard');
 const logsCard = document.getElementById('logsCard');
 const checkUpdateBtn = document.getElementById('checkUpdateBtn');
 const openUpdateBtn = document.getElementById('openUpdateBtn');
+const openGameBtn = document.getElementById('openGameBtn');
 const updateStatus = document.getElementById('updateStatus');
 const appRoot = document.querySelector('.app');
 const reconnectCountdown = document.getElementById('reconnectCountdown');
@@ -478,6 +479,11 @@ openUpdateBtn?.addEventListener('click', async () => {
   const url = openUpdateBtn.dataset.url;
   if (!url || !window.api?.openExternal) return;
   await window.api.openExternal(url);
+});
+
+openGameBtn?.addEventListener('click', async () => {
+  if (!window.api?.openExternal) return;
+  await window.api.openExternal('https://magicgarden.gg');
 });
 
 toggleBtn.addEventListener('click', async () => {
