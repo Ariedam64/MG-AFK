@@ -37,7 +37,7 @@ Manual method (no extension):
 
 ## Screenshot
 
-![MG AFK UI](https://prnt.sc/N1eUKf1A5PLs)
+![MG AFK UI](https://i.imgur.com/T8yo3ZD.png)
 
 ### Reconnect on (Superseded)
 
