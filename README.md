@@ -12,6 +12,14 @@ MG AFK connects to the game's WebSocket endpoint. You must provide your Discord
 Incoming data is formatted and displayed in the interface (status, ability logs,
 shops, pet hunger).
 
+### Reconnect on (Superseded)
+
+The Superseded option is useful if you occasionally open the real game to take
+quick actions (feed pets at 0% hunger, buy a rare shop item, etc.). When MG AFK
+detects that your session was replaced by another device, it waits for the
+delay you set and reconnects automatically. This lets you briefly open the
+game, do what you need, close it, and the app resumes the idle session on its own.
+
 ## Build
 
 Prerequisites:
@@ -33,3 +41,5 @@ npm run dist
 ```
 
 The portable `.exe` will be created in `dist/` (e.g. `mgafk-portable-1.0.0.exe`).
+
+To download a ready-made `.exe`, go to the GitHub Releases section of the repo.
