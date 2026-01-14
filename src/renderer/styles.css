@@ -620,6 +620,26 @@ button:disabled {
   flex-direction: column;
   gap: 5px;
   padding-right: 4px;
+  scrollbar-gutter: stable;
+}
+
+.logs::-webkit-scrollbar {
+  width: 8px;
+}
+
+.logs::-webkit-scrollbar-track {
+  background: rgba(8, 12, 16, 0.6);
+  border-radius: 999px;
+}
+
+.logs::-webkit-scrollbar-thumb {
+  background: rgba(244, 178, 62, 0.45);
+  border-radius: 999px;
+  border: 2px solid rgba(8, 12, 16, 0.6);
+}
+
+.logs::-webkit-scrollbar-thumb:hover {
+  background: rgba(244, 178, 62, 0.7);
 }
 
 .log-item {
