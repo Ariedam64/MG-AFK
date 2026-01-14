@@ -1,0 +1,36 @@
+{
+  "name": "mgafk",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win portable --x64 --publish never",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "ws": "^8.19.0"
+  },
+  "devDependencies": {
+    "electron": "^39.2.7",
+    "electron-builder": "^26.4.0"
+  },
+  "build": {
+    "appId": "com.mgafk.app",
+    "productName": "MG AFK",
+    "asar": true,
+    "compression": "maximum",
+    "files": [
+      "src/**",
+      "package.json"
+    ],
+    "win": {
+      "target": "portable",
+      "artifactName": "mgafk-portable-${version}.exe"
+    }
+  }
+}

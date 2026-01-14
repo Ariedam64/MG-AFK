@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>MG AFK</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=Sora:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <div class="main-layout">
+        <header class="hero">
+          <h1>Stay in Magic Garden, hands free</h1>
+          <p>
+            Connect to a room, stay online, and track ability triggers in real
+            time.
+          </p>
+        </header>
+
+        <section class="card form-card">
+          <div class="card-title">
+            <h2>Connection</h2>
+            <span id="statusChip" class="chip chip-idle">Offline</span>
+          </div>
+          <div class="form-row">
+            <label class="field">
+              <span>Discord mc_jwt cookie</span>
+              <input
+                id="cookieInput"
+                type="password"
+                placeholder="mc_jwt=..."
+              />
+            </label>
+            <button id="toggleBtn" class="primary">Connect</button>
+          </div>
+          <div class="reconnect">
+            <details class="reconnect-details">
+              <summary class="label">Reconnect on</summary>
+              <div class="reconnect-body">
+                <div class="reconnect-cards">
+                  <div class="reconnect-card">
+                    <div class="reconnect-card-header">
+                      <span class="reconnect-card-title">Superseded</span>
+                      <input
+                        type="checkbox"
+                        data-group="superseded"
+                        aria-label="Reconnect on superseded"
+                      />
+                    </div>
+                    <span class="reconnect-card-desc">
+                      Reconnect if another device/session takes over.
+                    </span>
+                    <div class="reconnect-delay">
+                      <span class="label">Delay</span>
+                      <input
+                        id="reconnectDelaySuperseded"
+                        class="reconnect-range"
+                        type="range"
+                        min="10"
+                        max="60"
+                        step="1"
+                        data-delay-group="superseded"
+                      />
+                      <span id="reconnectDelaySupersededValue" class="value mono">0s</span>
+                    </div>
+                  </div>
+                  <div class="reconnect-card">
+                    <div class="reconnect-card-header">
+                      <span class="reconnect-card-title">Other disconnects</span>
+                      <input
+                        type="checkbox"
+                        data-group="other"
+                        data-unknown="true"
+                        aria-label="Reconnect on other disconnects"
+                      />
+                    </div>
+                    <span class="reconnect-card-desc">
+                      Reconnect on game updates, timeouts, kicks, auth errors, or unknown drops.
+                    </span>
+                    <div class="reconnect-delay">
+                      <span class="label">Delay</span>
+                      <input
+                        id="reconnectDelayOther"
+                        class="reconnect-range"
+                        type="range"
+                        min="0"
+                        max="10"
+                        step="1"
+                        data-delay-group="other"
+                      />
+                      <span id="reconnectDelayOtherValue" class="value mono">0s</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </details>
+          </div>
+          <div class="actions">
+            <span id="errorText" class="error"></span>
+            <span id="reconnectCountdown" class="hint"></span>
+          </div>
+        </section>
+
+        <section class="grid compact-grid">
+          <div class="card status-card" id="statusCard">
+            <h3>Live status</h3>
+            <div class="stat">
+              <span class="label">Players online</span>
+              <span id="playersValue" class="value">0</span>
+            </div>
+            <div class="stat">
+              <span class="label">Uptime</span>
+              <span id="uptimeValue" class="value">00:00:00</span>
+            </div>
+            <div class="stat">
+              <span class="label">Player</span>
+              <span id="playerNameValue" class="value">-</span>
+            </div>
+            <div class="stat">
+              <span class="label">Room</span>
+              <span id="roomIdValue" class="value mono">-</span>
+            </div>
+            <div class="stat">
+              <span class="label">Player ID</span>
+              <span id="playerIdValue" class="value mono">-</span>
+            </div>
+          </div>
+
+          <div class="card logs-card" id="logsCard">
+            <h3>Ability logs</h3>
+            <div id="logList" class="logs"></div>
+          </div>
+
+          <div class="card pet-card" id="petCard">
+            <h3>Pet hunger</h3>
+            <div id="petList" class="pet-list"></div>
+          </div>
+        </section>
+
+        <section class="card shops-card" id="shopsCard">
+          <h3>Shops</h3>
+          <div class="shops-grid">
+            <div class="shop-block">
+              <div class="shop-header">
+                <h4>Seeds</h4>
+                <span id="shopSeedRestock" class="shop-restock">--:--</span>
+              </div>
+              <div id="shopSeedList" class="shop-list"></div>
+            </div>
+            <div class="shop-block">
+              <div class="shop-header">
+                <h4>Tools</h4>
+                <span id="shopToolRestock" class="shop-restock">--:--</span>
+              </div>
+              <div id="shopToolList" class="shop-list"></div>
+            </div>
+            <div class="shop-block">
+              <div class="shop-header">
+                <h4>Eggs</h4>
+                <span id="shopEggRestock" class="shop-restock">--:--</span>
+              </div>
+              <div id="shopEggList" class="shop-list"></div>
+            </div>
+            <div class="shop-block">
+              <div class="shop-header">
+                <h4>Decors</h4>
+                <span id="shopDecorRestock" class="shop-restock">--:--</span>
+              </div>
+              <div id="shopDecorList" class="shop-list"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script src="shops.js"></script>
+    <script src="renderer.js"></script>
+  </body>
+</html>
