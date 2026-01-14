@@ -1,6 +1,6 @@
 {
   "name": "mgafk",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "",
   "main": "src/main.js",
   "scripts": {
@@ -28,9 +28,11 @@
       "src/**",
       "package.json"
     ],
+    "icon": "mgafk.ico",
     "win": {
       "target": "portable",
-      "artifactName": "mgafk-portable-${version}.exe"
+      "artifactName": "mgafk-portable-${version}.exe",
+      "icon": "mgafk.ico"
     }
   }
 }
