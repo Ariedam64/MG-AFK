@@ -18,13 +18,20 @@
   <body>
     <main class="app">
       <div class="main-layout">
-        <header class="hero">
-          <h1>Stay in Magic Garden, hands free</h1>
-          <p>
-            Connect to a room, stay online, and track ability triggers in real
-            time.
-          </p>
-        </header>
+        <div class="top-bar">
+          <header class="hero">
+            <h1>Stay in Magic Garden, hands free</h1>
+            <p>
+              Connect to a room, stay online, and track ability triggers in real
+              time.
+            </p>
+          </header>
+          <div class="top-actions">
+            <button id="checkUpdateBtn" class="secondary small">Check update</button>
+            <button id="openUpdateBtn" class="secondary small hidden">Download</button>
+            <span id="updateStatus" class="hint"></span>
+          </div>
+        </div>
 
         <section class="card form-card">
           <div class="card-title">

@@ -24,6 +24,9 @@ const shopsCard = document.getElementById('shopsCard');
 const statusCard = document.getElementById('statusCard');
 const petCard = document.getElementById('petCard');
 const logsCard = document.getElementById('logsCard');
+const checkUpdateBtn = document.getElementById('checkUpdateBtn');
+const openUpdateBtn = document.getElementById('openUpdateBtn');
+const updateStatus = document.getElementById('updateStatus');
 const appRoot = document.querySelector('.app');
 const reconnectCountdown = document.getElementById('reconnectCountdown');
 const reconnectInputs = document.querySelectorAll(
@@ -106,6 +109,54 @@ let reconnectState = JSON.parse(JSON.stringify(DEFAULT_RECONNECT));
 
 const setError = (msg) => {
   errorText.textContent = msg ? String(msg) : '';
+};
+
+const setUpdateStatus = (msg) => {
+  if (updateStatus) updateStatus.textContent = msg ? String(msg) : '';
+};
+
+const runUpdateCheck = async ({ showProgress = false } = {}) => {
+  if (!window.api?.checkUpdate) return;
+  if (showProgress && checkUpdateBtn) checkUpdateBtn.disabled = true;
+  if (showProgress) setUpdateStatus('Checking...');
+  if (openUpdateBtn) {
+    openUpdateBtn.classList.add('hidden');
+    openUpdateBtn.textContent = 'Download';
+  }
+  try {
+    const result = await window.api.checkUpdate();
+    if (!result || result.status === 'error') {
+      if (showProgress) {
+        setUpdateStatus(result?.message || 'Update check failed.');
+      }
+      return;
+    }
+    if (result.status === 'no-release') {
+      setUpdateStatus('No releases yet.');
+      if (openUpdateBtn && result.url) {
+        openUpdateBtn.dataset.url = result.url;
+        openUpdateBtn.textContent = 'Open releases';
+        openUpdateBtn.classList.remove('hidden');
+      }
+      return;
+    }
+    if (result.status === 'available') {
+      setUpdateStatus(`Update available (${result.latestVersion})`);
+      if (openUpdateBtn && result.url) {
+        openUpdateBtn.dataset.url = result.url;
+        openUpdateBtn.textContent = 'Download';
+        openUpdateBtn.classList.remove('hidden');
+      }
+      return;
+    }
+    setUpdateStatus('Up to date');
+  } catch (err) {
+    if (showProgress) {
+      setUpdateStatus(err && err.message ? err.message : 'Update check failed.');
+    }
+  } finally {
+    if (showProgress && checkUpdateBtn) checkUpdateBtn.disabled = false;
+  }
 };
 
 const setBusy = (value) => {
@@ -244,6 +295,7 @@ const setupReconnectAnimation = () => {
     const done = () => {
       reconnectDetails.removeAttribute('open');
       reconnectBody.removeEventListener('transitionend', done);
+      scheduleResize();
     };
     reconnectBody.addEventListener('transitionend', done);
   };
@@ -258,6 +310,7 @@ const setupReconnectAnimation = () => {
       reconnectBody.style.maxHeight = `${height}px`;
       reconnectBody.style.opacity = '1';
       reconnectBody.style.transform = 'translateY(0)';
+      scheduleResize();
     });
   };
 
@@ -289,6 +342,8 @@ const resetStats = () => {
       { seed: [], tool: [], egg: [], decor: [], restock: {} },
     );
   }
+  setUpdateStatus('');
+  if (openUpdateBtn) openUpdateBtn.classList.add('hidden');
 };
 
 const getHungerLimit = (species) => {
@@ -413,6 +468,16 @@ reconnectInputs.forEach((input) => {
     }
     saveReconnect();
   });
+});
+
+checkUpdateBtn?.addEventListener('click', async () => {
+  await runUpdateCheck({ showProgress: true });
+});
+
+openUpdateBtn?.addEventListener('click', async () => {
+  const url = openUpdateBtn.dataset.url;
+  if (!url || !window.api?.openExternal) return;
+  await window.api.openExternal(url);
 });
 
 toggleBtn.addEventListener('click', async () => {
@@ -569,6 +634,7 @@ setConnected(false);
 setStatusChip('idle');
 syncLogHeight();
 scheduleResize();
+window.addEventListener('load', () => runUpdateCheck({ showProgress: false }));
 
 if (appRoot && 'ResizeObserver' in window) {
   const observer = new ResizeObserver(() => scheduleResize());

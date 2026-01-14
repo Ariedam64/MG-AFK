@@ -18,4 +18,6 @@ contextBridge.exposeInMainWorld('api', {
   onTraffic: on('ws:traffic'),
   onLiveStatus: on('ws:liveStatus'),
   onShops: on('ws:shops'),
+  checkUpdate: () => ipcRenderer.invoke('app:checkUpdate'),
+  openExternal: (url) => ipcRenderer.invoke('app:openExternal', url),
 });

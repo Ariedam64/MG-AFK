@@ -82,13 +82,17 @@ body::after {
   gap: 10px;
   align-items: start;
   grid-template-areas:
-    'hero .'
+    'hero hero'
     'form shops'
     'content shops';
 }
 
-.hero {
+.top-bar {
   grid-area: hero;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .form-card {
@@ -107,12 +111,21 @@ body::after {
   height: 100%;
 }
 
+
 .hero {
   display: flex;
   flex-direction: column;
   gap: 4px;
   max-width: 480px;
   animation: fadeUp 0.8s ease both;
+}
+
+.top-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-left: auto;
+  gap: 6px;
 }
 
 .hero h1 {
@@ -253,6 +266,15 @@ body::after {
   align-items: center;
   gap: 6px;
   margin-top: 8px;
+}
+
+.update-actions {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.hidden {
+  display: none;
 }
 
 .hint {
@@ -747,6 +769,15 @@ button:disabled {
       'form'
       'content'
       'shops';
+  }
+
+  .top-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .top-actions {
+    align-items: flex-start;
   }
 }
 
