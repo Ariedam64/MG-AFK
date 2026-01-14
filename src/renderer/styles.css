@@ -177,7 +177,7 @@ body::after {
 
 .card-title h2 {
   margin: 0;
-  font-size: 0.84rem;
+  font-size: 0.92rem;
 }
 
 .chip {
@@ -551,9 +551,10 @@ button:disabled {
 
 .status-card h3,
 .logs-card h3,
-.pet-card h3 {
+.pet-card h3,
+.shops-card h3 {
   margin: 0 0 6px;
-  font-size: 0.82rem;
+  font-size: 0.88rem;
 }
 
 .stat {
@@ -570,16 +571,17 @@ button:disabled {
 
 .label {
   color: var(--muted);
+  font-size: 0.72rem;
 }
 
 .value {
   font-weight: 600;
-  font-size: 0.86rem;
+  font-size: 0.82rem;
 }
 
 .mono {
   font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
-  font-size: 0.68rem;
+  font-size: 0.7rem;
 }
 
 .pet-list {
@@ -698,7 +700,7 @@ button:disabled {
 
 .shop-block h4 {
   margin: 0;
-  font-size: 0.72rem;
+  font-size: 0.76rem;
 }
 
 .shop-restock {

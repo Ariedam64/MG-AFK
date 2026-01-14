@@ -12,6 +12,10 @@ MG AFK connects to the game's WebSocket endpoint. You must provide your Discord
 Incoming data is formatted and displayed in the interface (status, ability logs,
 shops, pet hunger).
 
+## Screenshot
+
+![MG AFK UI](https://prnt.sc/H8dxuFMFAMhv)
+
 ### Reconnect on (Superseded)
 
 The Superseded option is useful if you occasionally open the real game to take
