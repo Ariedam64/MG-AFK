@@ -242,6 +242,38 @@ class RoomClient extends EventEmitter {
     };
   }
 
+  _failAuth(message) {
+    const msg = message || 'Authentication failed.';
+    this._clearTimers();
+    this._clearRetryTimers();
+    this.state = 'error';
+    this.connectedAt = 0;
+    this.welcomed = false;
+    this.roomState = null;
+    this.gameState = null;
+    this.playerCount = 0;
+    this.retryCount = 0;
+    this.retryCode = null;
+    this.initialConnectFastRetry = false;
+    this.emit('status', { state: 'error', message: msg, code: 4800 });
+
+    const ws = this.ws;
+    this.ws = null;
+    this.socketToken += 1;
+    if (ws) {
+      try {
+        ws.close(1000, 'auth failed');
+      } catch (err) {
+        // ignore
+      }
+      try {
+        ws.terminate();
+      } catch (err) {
+        // ignore
+      }
+    }
+  }
+
   connect({ version, cookie, host, userAgent, reconnect, room } = {}, meta = {}) {
     const isRetry = Boolean(meta && meta.isRetry);
     const nextVersion = String(version || '').trim();
@@ -404,6 +436,11 @@ class RoomClient extends EventEmitter {
     if (msg.type === 'Welcome' && msg.fullState) {
       const room = msg.fullState?.data || null;
       const game = msg.fullState?.child?.data || null;
+      const me = room?.players?.find((p) => p?.id === this.playerId);
+      if (me && me.databaseUserId == null) {
+        this._failAuth('Invalid mc_jwt cookie.');
+        return;
+      }
       this.roomState = room;
       this.gameState = game;
       this._emitPlayerCount(room);
@@ -433,18 +470,16 @@ class RoomClient extends EventEmitter {
     if (msg.type !== 'PartialState' || !Array.isArray(msg.patches)) return;
 
     const logs = new Map();
+    let roomDirty = false;
     let seen = 0;
     let liveDirty = false;
-    if (this.userSlotIndex == null && this.roomState) {
-      const players = Array.isArray(this.roomState.players) ? this.roomState.players : [];
-      const idx = players.findIndex((p) => p?.id === this.playerId);
-      if (idx >= 0) this.userSlotIndex = idx;
-    }
+
     for (const p of msg.patches) {
       if (!p || typeof p.path !== 'string') continue;
 
       if (/^\/data\/players\//.test(p.path) && this.roomState) {
         applyPatch(this.roomState, p.path, p.value, p.op);
+        roomDirty = true;
         continue;
       }
 
@@ -452,6 +487,27 @@ class RoomClient extends EventEmitter {
         applyPatch(this.gameState, p.path.replace(/^\/child/, ''), p.value, p.op);
         liveDirty = true;
       }
+    }
+
+    if (this.roomState) {
+      const players = Array.isArray(this.roomState.players) ? this.roomState.players : [];
+      const idx = players.findIndex((p) => p?.id === this.playerId);
+      if (idx >= 0) this.playerIndex = idx;
+      const slotIndex = findUserSlotIndex(
+        this.roomState,
+        this.gameState,
+        this.playerId,
+        this.playerIndex,
+      );
+      if (slotIndex != null) {
+        this.userSlotIndex = slotIndex;
+      } else if (this.userSlotIndex == null && this.playerIndex >= 0) {
+        this.userSlotIndex = this.playerIndex;
+      }
+    }
+
+    for (const p of msg.patches) {
+      if (!p || typeof p.path !== 'string') continue;
 
       const m =
         p.path.match(
@@ -505,8 +561,10 @@ class RoomClient extends EventEmitter {
     }
 
     if (this.roomState) this._emitPlayerCount(this.roomState);
-    if (liveDirty) {
+    if (roomDirty || liveDirty) {
       this._emitLiveStatus();
+    }
+    if (liveDirty) {
       this._emitShops();
     }
 
