@@ -27,10 +27,21 @@
             </p>
           </header>
           <div class="top-actions">
+            <select id="openGameSelect" class="top-select small" aria-label="Game site">
+              <option value="https://magicgarden.gg">magicgarden.gg</option>
+              <option value="https://starweaver.org">starweaver.org</option>
+              <option value="https://magiccircle.gg">magiccircle.gg</option>
+            </select>
             <button id="openGameBtn" class="secondary small">Open game</button>
             <button id="checkUpdateBtn" class="secondary small">Check update</button>
             <button id="openUpdateBtn" class="secondary small hidden">Download</button>
             <span id="updateStatus" class="hint"></span>
+          </div>
+        </div>
+
+        <div class="tabs-bar">
+          <div id="tabs" class="tabs">
+            <button id="addTabBtn" class="tab tab-add">+</button>
           </div>
         </div>
 
@@ -39,8 +50,8 @@
             <h2>Connection</h2>
             <span id="statusChip" class="chip chip-idle">Offline</span>
           </div>
-          <div class="form-row">
-            <label class="field">
+          <div class="form-grid">
+            <label class="field-inline">
               <span>Discord mc_jwt cookie</span>
               <input
                 id="cookieInput"
@@ -48,7 +59,10 @@
                 placeholder="mc_jwt=..."
               />
             </label>
-            <button id="toggleBtn" class="primary">Connect</button>
+            <label class="field-inline">
+              <span>Room code (optional)</span>
+              <input id="roomInput" type="text" placeholder="Auto room" />
+            </label>
           </div>
           <div class="reconnect">
             <details class="reconnect-details">
@@ -112,9 +126,32 @@
               </div>
             </details>
           </div>
+          <div class="connect-row">
+            <button id="toggleBtn" class="primary">Connect</button>
+          </div>
           <div class="actions">
             <span id="errorText" class="error"></span>
             <span id="reconnectCountdown" class="hint"></span>
+          </div>
+        </section>
+
+        <section class="stack-column" id="stackColumn">
+          <div class="card logs-card" id="logsCard">
+            <div class="logs-header">
+              <h3>Ability logs</h3>
+              <input
+                id="logSearchInput"
+                class="log-search"
+                type="search"
+                placeholder="Search logs..."
+                aria-label="Search ability logs"
+              />
+            </div>
+            <div id="logList" class="logs"></div>
+          </div>
+          <div class="card pet-card" id="petCard">
+            <h3>Pet hunger</h3>
+            <div id="petList" class="pet-list"></div>
           </div>
         </section>
 
@@ -141,16 +178,6 @@
               <span class="label">Player ID</span>
               <span id="playerIdValue" class="value mono">-</span>
             </div>
-          </div>
-
-          <div class="card logs-card" id="logsCard">
-            <h3>Ability logs</h3>
-            <div id="logList" class="logs"></div>
-          </div>
-
-          <div class="card pet-card" id="petCard">
-            <h3>Pet hunger</h3>
-            <div id="petList" class="pet-list"></div>
           </div>
         </section>
 

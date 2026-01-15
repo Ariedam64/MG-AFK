@@ -12,6 +12,12 @@ MG AFK connects to the game's WebSocket endpoint. You must provide your Discord
 Incoming data is formatted and displayed in the interface (status, ability logs,
 shops, pet hunger).
 
+## Multiple accounts
+
+MG AFK supports running multiple sessions at the same time. Use the tabs bar to
+add a new account (+) and switch between sessions. Each tab keeps its own
+cookie, room code, and reconnect settings.
+
 ## How to get your `mc_jwt` token
 
 The easiest way is to use a browser extension that can read cookies:

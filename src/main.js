@@ -7,7 +7,7 @@ const { app, BrowserWindow, ipcMain, screen, shell } = require('electron');
 const { RoomClient } = require('./ws/roomClient');
 
 let mainWindow = null;
-const client = new RoomClient();
+const clients = new Map();
 
 const sendToRenderer = (channel, payload) => {
   if (mainWindow && mainWindow.webContents) {
@@ -18,13 +18,67 @@ const sendToRenderer = (channel, payload) => {
 const fmtTime = (ts) =>
   new Date(ts).toLocaleTimeString('fr-FR', { hour12: false });
 
-const emitDebug = (level, message, detail) => {
+const emitDebug = (level, message, detail, sessionId) => {
   const ts = Date.now();
+  const sessionTag = sessionId ? `session=${sessionId}` : '';
+  const fullDetail = [sessionTag, detail].filter(Boolean).join(' ');
   const line = `[${fmtTime(ts)}] [${level}] ${message}${
-    detail ? ` | ${detail}` : ''
+    fullDetail ? ` | ${fullDetail}` : ''
   }`;
   console.log(line);
-  sendToRenderer('ws:debug', { level, message, detail, ts });
+  sendToRenderer('ws:debug', { level, message, detail: fullDetail, ts, sessionId });
+};
+
+const resolveSessionId = (value) => {
+  const text = String(value || '').trim();
+  return text || 'default';
+};
+
+const bindClient = (client, sessionId) => {
+  client.on('status', (payload) => {
+    sendToRenderer('ws:status', { sessionId, ...payload });
+    if (!payload || !payload.state) return;
+    if (payload.state === 'error') {
+      const detail = payload.message || payload.reason || 'unknown';
+      emitDebug('error', 'ws error', detail, sessionId);
+      return;
+    }
+    if (payload.state === 'disconnected') {
+      const detail = payload.reason
+        ? `${payload.code || ''} ${payload.reason}`.trim()
+        : String(payload.code || '');
+      emitDebug('info', 'ws disconnected', detail, sessionId);
+      return;
+    }
+    emitDebug('info', 'ws status', payload.state, sessionId);
+  });
+
+  client.on('players', (payload) => {
+    sendToRenderer('ws:players', { sessionId, ...payload });
+    if (payload && typeof payload.count === 'number') {
+      emitDebug('info', 'players update', String(payload.count), sessionId);
+    }
+  });
+
+  client.on('uptime', (payload) => sendToRenderer('ws:uptime', { sessionId, ...payload }));
+  client.on('abilityLog', (payload) => sendToRenderer('ws:abilityLog', { sessionId, ...payload }));
+  client.on('traffic', (payload) => sendToRenderer('ws:traffic', { sessionId, ...payload }));
+  client.on('liveStatus', (payload) => sendToRenderer('ws:liveStatus', { sessionId, ...payload }));
+  client.on('shops', (payload) => sendToRenderer('ws:shops', { sessionId, ...payload }));
+  client.on('gameAction', (payload) => {
+    if (!payload) return;
+    const detail = payload.gameName ? `${payload.type} | ${payload.gameName}` : payload.type;
+    emitDebug('info', 'game action', detail, sessionId);
+  });
+};
+
+const getClient = (sessionId) => {
+  const key = resolveSessionId(sessionId);
+  if (clients.has(key)) return clients.get(key);
+  const client = new RoomClient();
+  bindClient(client, key);
+  clients.set(key, client);
+  return client;
 };
 
 const fetchLatestVersion = () => {
@@ -178,64 +232,32 @@ const compareVersions = (a, b) => {
   return 0;
 };
 
-client.on('status', (payload) => {
-  sendToRenderer('ws:status', payload);
-  if (!payload || !payload.state) return;
-  if (payload.state === 'error') {
-    const detail = payload.message || payload.reason || 'unknown';
-    emitDebug('error', 'ws error', detail);
-    return;
-  }
-  if (payload.state === 'disconnected') {
-    const detail = payload.reason
-      ? `${payload.code || ''} ${payload.reason}`.trim()
-      : String(payload.code || '');
-    emitDebug('info', 'ws disconnected', detail);
-    return;
-  }
-  emitDebug('info', 'ws status', payload.state);
-});
-
-client.on('players', (payload) => {
-  sendToRenderer('ws:players', payload);
-  if (payload && typeof payload.count === 'number') {
-    emitDebug('info', 'players update', String(payload.count));
-  }
-});
-
-client.on('uptime', (payload) => sendToRenderer('ws:uptime', payload));
-client.on('abilityLog', (payload) => sendToRenderer('ws:abilityLog', payload));
-client.on('traffic', (payload) => sendToRenderer('ws:traffic', payload));
-client.on('liveStatus', (payload) => sendToRenderer('ws:liveStatus', payload));
-client.on('shops', (payload) => sendToRenderer('ws:shops', payload));
-client.on('gameAction', (payload) => {
-  if (!payload) return;
-  const detail = payload.gameName ? `${payload.type} | ${payload.gameName}` : payload.type;
-  emitDebug('info', 'game action', detail);
-});
-
 ipcMain.handle('ws:connect', async (event, options) => {
   try {
+    const sessionId = resolveSessionId(options?.sessionId);
     const clean = {
+      sessionId,
       version: options?.version || 'auto',
-      room: 'auto',
+      room: options?.room || 'auto',
     };
-    emitDebug('info', 'connect request', JSON.stringify(clean));
+    emitDebug('info', 'connect request', JSON.stringify(clean), sessionId);
     const version =
       options && options.version ? options.version : await fetchLatestVersion();
+    const client = getClient(sessionId);
     const result = client.connect({
       version,
+      room: options?.room,
       cookie: options?.cookie,
       host: options?.host,
       userAgent: options?.userAgent,
       reconnect: options?.reconnect,
     });
     const detail = result.url ? `player=${result.playerId || ''} url=${result.url}` : result.playerId || '';
-    emitDebug('info', 'connect ok', detail);
+    emitDebug('info', 'connect ok', detail, sessionId);
     return result;
   } catch (err) {
     const msg = err && err.message ? err.message : String(err);
-    emitDebug('error', 'connect failed', msg);
+    emitDebug('error', 'connect failed', msg, resolveSessionId(options?.sessionId));
     return { error: msg };
   }
 });
@@ -287,8 +309,10 @@ ipcMain.handle('app:openExternal', async (event, url) => {
   return true;
 });
 
-ipcMain.handle('ws:disconnect', () => {
-  emitDebug('info', 'disconnect request', '');
+ipcMain.handle('ws:disconnect', (event, options) => {
+  const sessionId = resolveSessionId(options?.sessionId);
+  const client = getClient(sessionId);
+  emitDebug('info', 'disconnect request', '', sessionId);
   client.disconnect();
   return { ok: true };
 });
@@ -323,7 +347,7 @@ app.on('activate', () => {
 });
 
 app.on('before-quit', () => {
-  client.disconnect();
+  clients.forEach((client) => client.disconnect());
 });
 
 app.on('window-all-closed', () => {

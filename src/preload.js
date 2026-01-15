@@ -9,7 +9,7 @@ const on = (channel) => (handler) => {
 
 contextBridge.exposeInMainWorld('api', {
   connect: (options) => ipcRenderer.invoke('ws:connect', options),
-  disconnect: () => ipcRenderer.invoke('ws:disconnect'),
+  disconnect: (options) => ipcRenderer.invoke('ws:disconnect', options),
   onStatus: on('ws:status'),
   onPlayers: on('ws:players'),
   onUptime: on('ws:uptime'),

@@ -242,10 +242,11 @@ class RoomClient extends EventEmitter {
     };
   }
 
-  connect({ version, cookie, host, userAgent, reconnect } = {}, meta = {}) {
+  connect({ version, cookie, host, userAgent, reconnect, room } = {}, meta = {}) {
     const isRetry = Boolean(meta && meta.isRetry);
     const nextVersion = String(version || '').trim();
     const nextCookie = normalizeCookie(cookie);
+    const nextRoom = String(room || '').trim();
 
     if (!nextVersion || !nextCookie) {
       throw new Error('Missing version or cookie');
@@ -266,7 +267,7 @@ class RoomClient extends EventEmitter {
 
     this.host = host || DEFAULT_HOST;
     this.version = nextVersion;
-    this.room = generateRoomId();
+    this.room = nextRoom || generateRoomId();
     this.cookie = nextCookie;
     this.userAgent = userAgent || DEFAULT_UA;
     this.playerId = generatePlayerId();
@@ -285,6 +286,7 @@ class RoomClient extends EventEmitter {
     }
     this.lastConnectOpts = {
       version: this.version,
+      room: this.room,
       cookie: this.cookie,
       host: this.host,
       userAgent: this.userAgent,
