@@ -1,13 +1,32 @@
 'use strict';
 const path = require('path');
+const fs = require('fs');
 const http = require('http');
 const https = require('https');
 const zlib = require('zlib');
-const { app, BrowserWindow, ipcMain, screen, shell } = require('electron');
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  screen,
+  shell,
+  Tray,
+  Menu,
+  nativeImage,
+  Notification,
+} = require('electron');
+const { fetchGameVersion } = require('./assets/gameVersion');
+const { getAssetUrl } = require('./assets/assets');
+const { loadManifest } = require('./assets/manifest');
 const { RoomClient } = require('./ws/roomClient');
 
 let mainWindow = null;
 const clients = new Map();
+const sessionStates = new Map();
+let activeSessionId = '';
+let tray = null;
+let isQuitting = false;
+let trayUpdateStatus = '';
 
 const sendToRenderer = (channel, payload) => {
   if (mainWindow && mainWindow.webContents) {
@@ -32,6 +51,142 @@ const emitDebug = (level, message, detail, sessionId) => {
 const resolveSessionId = (value) => {
   const text = String(value || '').trim();
   return text || 'default';
+};
+
+const getTraySession = () => {
+  if (activeSessionId && sessionStates.has(activeSessionId)) {
+    return sessionStates.get(activeSessionId);
+  }
+  const first = sessionStates.values().next();
+  return first.done ? null : first.value;
+};
+
+const buildRoomUrl = (session) => {
+  if (!session) return '';
+  const base = String(session.gameUrl || 'https://magicgarden.gg').replace(/\/+$/, '');
+  const room = session.roomId || session.room || '';
+  return room ? `${base}/r/${room}` : base;
+};
+
+const showMainWindow = () => {
+  if (!mainWindow) {
+    createWindow();
+  }
+  if (!mainWindow) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+};
+
+const toggleWindow = () => {
+  if (!mainWindow) return;
+  if (mainWindow.isVisible()) {
+    mainWindow.hide();
+  } else {
+    showMainWindow();
+  }
+  updateTrayMenu();
+};
+
+const getTrayIconPath = () => {
+  const candidates = [
+    path.join(app.getAppPath(), 'mgafk.ico'),
+    path.join(process.resourcesPath || '', 'mgafk.ico'),
+    path.join(__dirname, '..', 'mgafk.ico'),
+  ];
+  return candidates.find((candidate) => candidate && fs.existsSync(candidate)) || candidates[0];
+};
+
+const formatPetLabel = (pet) => {
+  if (!pet) return '';
+  const label = pet.label || '';
+  if (!label) return '';
+  if (!Number.isFinite(pet.hungerPct)) return label;
+  return `${label} — ${Math.round(pet.hungerPct)}%`;
+};
+
+const updateTrayMenu = () => {
+  if (!tray) return;
+  const session = getTraySession();
+  const connected = Boolean(session?.connected);
+  const showLabel =
+    mainWindow && mainWindow.isVisible() ? 'Hide' : 'Show';
+  const sessionsMenu = Array.from(sessionStates.values()).map((value) => {
+    const isActive = value.id === activeSessionId;
+    const petItems = Array.isArray(value.pets) ? value.pets : [];
+    const petMenu = petItems.length
+      ? petItems.map((pet) => ({
+        label: formatPetLabel(pet),
+        enabled: false,
+      }))
+      : [{ label: 'No pets', enabled: false }];
+    return {
+      label: value.name || value.id,
+      submenu: [
+        {
+          label: value.connected ? 'Disconnect' : 'Connect',
+          click: () => {
+            sendToRenderer('tray:toggle-connection', { sessionId: value.id });
+          },
+        },
+        {
+          label: 'Open game',
+          click: () => {
+            const url = buildRoomUrl(value);
+            if (url) shell.openExternal(url);
+          },
+        },
+        { type: 'separator' },
+        ...petMenu,
+      ],
+    };
+  });
+
+  const template = [
+    {
+      label: showLabel,
+      click: () => toggleWindow(),
+    },
+    {
+      label: 'Check update',
+      click: () => sendToRenderer('tray:check-update', {}),
+    },
+    ...(trayUpdateStatus
+      ? [{ label: trayUpdateStatus, enabled: false }]
+      : []),
+    { type: 'separator' },
+    {
+      label: 'Sessions',
+      submenu: sessionsMenu.length
+        ? sessionsMenu
+        : [{ label: 'No sessions', enabled: false }],
+    },
+    { type: 'separator' },
+    {
+      label: 'Quit MG AFK',
+      click: () => {
+        isQuitting = true;
+        tray?.destroy();
+        tray = null;
+        app.quit();
+      },
+    },
+  ];
+
+  tray.setContextMenu(Menu.buildFromTemplate(template));
+  tray.setToolTip(trayUpdateStatus ? `MG AFK - ${trayUpdateStatus}` : 'MG AFK');
+};
+
+const createTray = () => {
+  if (tray) return;
+  const iconPath = getTrayIconPath();
+  const icon = nativeImage.createFromPath(iconPath);
+  tray = new Tray(icon);
+  tray.setToolTip('MG AFK');
+  tray.on('click', toggleWindow);
+  tray.on('double-click', toggleWindow);
+  tray.on('balloon-click', () => showMainWindow());
+  updateTrayMenu();
 };
 
 const bindClient = (client, sessionId) => {
@@ -65,6 +220,15 @@ const bindClient = (client, sessionId) => {
   client.on('traffic', (payload) => sendToRenderer('ws:traffic', { sessionId, ...payload }));
   client.on('liveStatus', (payload) => sendToRenderer('ws:liveStatus', { sessionId, ...payload }));
   client.on('shops', (payload) => sendToRenderer('ws:shops', { sessionId, ...payload }));
+  client.on('debug', (payload) => {
+    if (!payload) return;
+    emitDebug(
+      payload.level || 'info',
+      payload.message || 'debug',
+      payload.detail || '',
+      sessionId,
+    );
+  });
   client.on('gameAction', (payload) => {
     if (!payload) return;
     const detail = payload.gameName ? `${payload.type} | ${payload.gameName}` : payload.type;
@@ -81,94 +245,7 @@ const getClient = (sessionId) => {
   return client;
 };
 
-const fetchLatestVersion = () => {
-  const maxRedirects = 4;
-
-  const requestUrl = (url, depth) =>
-    new Promise((resolve, reject) => {
-      emitDebug('info', 'version fetch', url);
-      const lib = url.startsWith('https:') ? https : http;
-      const req = lib.get(
-        url,
-        {
-          headers: {
-            'User-Agent': 'Mozilla/5.0',
-            'Accept-Encoding': 'gzip, deflate, br',
-          },
-        },
-        (res) => {
-          const status = res.statusCode || 0;
-          const encoding = res.headers['content-encoding'] || 'identity';
-          emitDebug('info', 'version fetch status', `${status} ${encoding}`);
-
-          if (status >= 300 && status < 400 && res.headers.location) {
-            if (depth >= maxRedirects) {
-              res.resume();
-              reject(new Error('Too many redirects'));
-              return;
-            }
-            const nextUrl = new URL(res.headers.location, url).toString();
-            emitDebug('info', 'version redirect', nextUrl);
-            res.resume();
-            resolve(requestUrl(nextUrl, depth + 1));
-            return;
-          }
-
-          if (status >= 400) {
-            res.resume();
-            emitDebug('error', 'version fetch status', String(status));
-            reject(new Error(`Version fetch failed (${status})`));
-            return;
-          }
-
-          let stream = res;
-          if (encoding === 'br') {
-            stream = res.pipe(zlib.createBrotliDecompress());
-          } else if (encoding === 'gzip') {
-            stream = res.pipe(zlib.createGunzip());
-          } else if (encoding === 'deflate') {
-            stream = res.pipe(zlib.createInflate());
-          }
-
-          let data = '';
-          stream.setEncoding('utf8');
-          stream.on('data', (chunk) => {
-            data += chunk;
-          });
-          stream.on('end', () => {
-            emitDebug('info', 'version fetch bytes', String(data.length));
-            const match = data.match(/\/version\/([^/]+)\//);
-            if (!match || !match[1]) {
-              const snippet = data.slice(0, 800);
-              emitDebug(
-                'error',
-                'version match failed',
-                snippet.replace(/\s+/g, ' ').slice(0, 200),
-              );
-              reject(new Error('Version not found'));
-              return;
-            }
-            emitDebug('info', 'version found', match[1]);
-            resolve(match[1]);
-          });
-          stream.on('error', (err) => {
-            emitDebug('error', 'version decode error', err.message || String(err));
-            reject(err);
-          });
-        },
-      );
-
-      req.on('error', (err) => {
-        emitDebug('error', 'version fetch error', err.message || String(err));
-        reject(err);
-      });
-      req.setTimeout(8000, () => {
-        req.destroy(new Error('Version fetch timeout'));
-      });
-    });
-
-  return requestUrl('https://magicgarden.gg', 0);
-};
+const fetchLatestVersion = (logger) => fetchGameVersion({ logger });
 
 const REPO_OWNER = 'Ariedam64';
 const REPO_NAME = 'MG-AFK';
@@ -209,6 +286,67 @@ const fetchLatestRelease = () =>
     req.on('error', reject);
   });
 
+const fetchAssetBuffer = (url, redirectsLeft = 3) =>
+  new Promise((resolve, reject) => {
+    const lib = url.startsWith('https:') ? https : http;
+    const req = lib.get(
+      url,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0',
+          'Accept-Encoding': 'gzip, deflate, br',
+        },
+      },
+      (res) => {
+        if (
+          res.statusCode >= 300 &&
+          res.statusCode < 400 &&
+          res.headers.location &&
+          redirectsLeft > 0
+        ) {
+          const nextUrl = new URL(res.headers.location, url).toString();
+          res.resume();
+          resolve(fetchAssetBuffer(nextUrl, redirectsLeft - 1));
+          return;
+        }
+
+        if (res.statusCode && res.statusCode >= 400) {
+          res.resume();
+          reject(new Error(`Asset fetch failed (${res.statusCode})`));
+          return;
+        }
+
+        const encoding = res.headers['content-encoding'] || 'identity';
+        let stream = res;
+        if (encoding === 'br') {
+          stream = res.pipe(zlib.createBrotliDecompress());
+        } else if (encoding === 'gzip') {
+          stream = res.pipe(zlib.createGunzip());
+        } else if (encoding === 'deflate') {
+          stream = res.pipe(zlib.createInflate());
+        }
+
+        const chunks = [];
+        stream.on('data', (chunk) => {
+          chunks.push(chunk);
+        });
+        stream.on('end', () => {
+          resolve({
+            buffer: Buffer.concat(chunks),
+            contentType: res.headers['content-type'] || '',
+          });
+        });
+        stream.on('error', reject);
+      },
+    );
+    req.on('error', reject);
+  });
+
+const fetchAssetJson = async (url) => {
+  const { buffer } = await fetchAssetBuffer(url);
+  return JSON.parse(buffer.toString('utf8'));
+};
+
 const normalizeVersion = (value) => String(value || '').trim().replace(/^v/i, '');
 
 const parseVersion = (value) => {
@@ -241,8 +379,12 @@ ipcMain.handle('ws:connect', async (event, options) => {
       room: options?.room || 'auto',
     };
     emitDebug('info', 'connect request', JSON.stringify(clean), sessionId);
+    const versionLogger = (level, message, detail) =>
+      emitDebug(level, message, detail, sessionId);
     const version =
-      options && options.version ? options.version : await fetchLatestVersion();
+      options && options.version
+        ? options.version
+        : await fetchLatestVersion(versionLogger);
     const client = getClient(sessionId);
     const result = client.connect({
       version,
@@ -309,6 +451,55 @@ ipcMain.handle('app:openExternal', async (event, url) => {
   return true;
 });
 
+ipcMain.handle('app:notify', (event, payload) => {
+  const title = payload?.title ? String(payload.title) : 'MG AFK';
+  const body = payload?.body ? String(payload.body) : '';
+  const iconPath = getTrayIconPath();
+  const icon = iconPath ? nativeImage.createFromPath(iconPath) : undefined;
+  if (tray && process.platform === 'win32' && typeof tray.displayBalloon === 'function') {
+    tray.displayBalloon({
+      title,
+      content: body,
+      icon: icon || undefined,
+    });
+  }
+  return Boolean(tray);
+});
+
+ipcMain.handle('assets:manifest', async () => {
+  try {
+    return await loadManifest();
+  } catch {
+    return null;
+  }
+});
+
+ipcMain.handle('assets:json', async (event, payload) => {
+  const relativePath = String(payload?.path || '').trim();
+  if (!relativePath) return null;
+  const url = await getAssetUrl(relativePath);
+  if (!url) return null;
+  try {
+    return await fetchAssetJson(url);
+  } catch {
+    return null;
+  }
+});
+
+ipcMain.handle('assets:image', async (event, payload) => {
+  const relativePath = String(payload?.path || '').trim();
+  if (!relativePath) return null;
+  const url = await getAssetUrl(relativePath);
+  if (!url) return null;
+  try {
+    const { buffer, contentType } = await fetchAssetBuffer(url);
+    const mime = String(contentType || 'image/png').split(';')[0] || 'image/png';
+    return { dataUrl: `data:${mime};base64,${buffer.toString('base64')}` };
+  } catch {
+    return null;
+  }
+});
+
 ipcMain.handle('ws:disconnect', (event, options) => {
   const sessionId = resolveSessionId(options?.sessionId);
   const client = getClient(sessionId);
@@ -317,12 +508,54 @@ ipcMain.handle('ws:disconnect', (event, options) => {
   return { ok: true };
 });
 
+ipcMain.handle('ws:dispose', (event, options) => {
+  const sessionId = resolveSessionId(options?.sessionId);
+  const client = clients.get(sessionId);
+  if (!client) return { ok: false };
+  client.removeAllListeners();
+  client.disconnect();
+  clients.delete(sessionId);
+  emitDebug('info', 'dispose session', '', sessionId);
+  return { ok: true };
+});
+
+ipcMain.on('tray:session', (event, payload) => {
+  const id = resolveSessionId(payload?.id);
+  if (payload?.removed) {
+    sessionStates.delete(id);
+  } else {
+    sessionStates.set(id, {
+      id,
+      name: payload?.name || id,
+      connected: Boolean(payload?.connected),
+      room: payload?.room || '',
+      roomId: payload?.roomId || '',
+      gameUrl: payload?.gameUrl || '',
+      pets: Array.isArray(payload?.pets) ? payload.pets : [],
+    });
+  }
+  updateTrayMenu();
+});
+
+ipcMain.on('tray:active', (event, payload) => {
+  const id = resolveSessionId(payload?.sessionId);
+  activeSessionId = id;
+  updateTrayMenu();
+});
+
+ipcMain.on('tray:update-status', (event, payload) => {
+  trayUpdateStatus = String(payload?.text || '').trim();
+  updateTrayMenu();
+});
+
 const createWindow = () => {
+  const iconPath = getTrayIconPath();
   mainWindow = new BrowserWindow({
-    width: 560,
+    width: 1320,
     height: 460,
     backgroundColor: '#0c1116',
     title: 'MG AFK',
+    icon: iconPath,
     useContentSize: true,
     resizable: false,
     autoHideMenuBar: true,
@@ -335,18 +568,33 @@ const createWindow = () => {
 
   mainWindow.setMenuBarVisibility(false);
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  mainWindow.on('close', (event) => {
+    if (isQuitting) return;
+    event.preventDefault();
+    mainWindow.hide();
+    updateTrayMenu();
+  });
+  mainWindow.on('show', () => updateTrayMenu());
+  mainWindow.on('hide', () => updateTrayMenu());
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
 };
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  app.setAppUserModelId('com.mgafk.app');
+  app.setName('MG AFK');
+  process.title = 'MG AFK';
+  createWindow();
+  createTray();
+});
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
 
 app.on('before-quit', () => {
+  isQuitting = true;
   clients.forEach((client) => client.disconnect());
 });
 

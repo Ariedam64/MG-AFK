@@ -41,9 +41,14 @@ Manual method (no extension):
 3) Go to **Application** → **Cookies** → `https://magicgarden.gg`.
 4) Copy the value of the **`mc_jwt`** cookie.
 
+## Alerts
+
+MG AFK can notify you about shop items, weather changes, and pet hunger. You can
+choose Windows notifications or a sound alert.
+
 ## Screenshot
 
-![MG AFK UI](https://i.imgur.com/T8yo3ZD.png)
+![MG AFK UI](https://i.imgur.com/3txyFSw.png)
 
 ### Reconnect on (Superseded)
 
@@ -52,6 +57,13 @@ quick actions (feed pets at 0% hunger, buy a rare shop item, etc.). When MG AFK
 detects that your session was replaced by another device, it waits for the
 delay you set and reconnects automatically. This lets you briefly open the
 game, do what you need, close it, and the app resumes the idle session on its own.
+
+### Reconnect on (Other disconnects)
+
+Other disconnects controls the common server-side disconnect codes (timeouts,
+network blips, server restarts, etc.). If enabled, MG AFK will automatically
+reconnect after the delay you set. Disable it if you want a hard stop for any
+unexpected disconnects.
 
 ## Build
 

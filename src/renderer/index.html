@@ -17,7 +17,7 @@
   </head>
   <body>
     <main class="app">
-      <div class="main-layout">
+      <div class="main-layout" id="mainView">
         <div class="top-bar">
           <header class="hero">
             <h1>Stay in Magic Garden, hands free</h1>
@@ -33,6 +33,7 @@
               <option value="https://magiccircle.gg">magiccircle.gg</option>
             </select>
             <button id="openGameBtn" class="secondary small">Open game</button>
+            <button id="toggleDevBtn" class="secondary small">Dev panel</button>
             <button id="checkUpdateBtn" class="secondary small">Check update</button>
             <button id="openUpdateBtn" class="secondary small hidden">Download</button>
             <span id="updateStatus" class="hint"></span>
@@ -52,7 +53,7 @@
           </div>
           <div class="form-grid">
             <label class="field-inline">
-              <span>Discord mc_jwt cookie</span>
+              <span>mc_jwt</span>
               <input
                 id="cookieInput"
                 type="password"
@@ -139,6 +140,8 @@
           <div class="card logs-card" id="logsCard">
             <div class="logs-header">
               <h3>Ability logs</h3>
+            </div>
+            <div class="logs-controls">
               <input
                 id="logSearchInput"
                 class="log-search"
@@ -175,48 +178,136 @@
               <span id="roomIdValue" class="value mono">-</span>
             </div>
             <div class="stat">
+              <span class="label">Weather</span>
+              <span class="value weather-value">
+                <img
+                  id="weatherIcon"
+                  class="item-sprite sprite-placeholder weather-sprite"
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                />
+                <span id="weatherValue">-</span>
+              </span>
+            </div>
+            <div class="stat">
               <span class="label">Player ID</span>
               <span id="playerIdValue" class="value mono">-</span>
             </div>
           </div>
         </section>
 
-        <section class="card shops-card" id="shopsCard">
-          <h3>Shops</h3>
-          <div class="shops-grid">
-            <div class="shop-block">
-              <div class="shop-header">
-                <h4>Seeds</h4>
-                <span id="shopSeedRestock" class="shop-restock">--:--</span>
+        <div class="shops-column" id="shopsColumn">
+          <section class="card shops-card" id="shopsCard">
+            <h3>Shop restock</h3>
+            <div class="shops-grid">
+              <div class="shop-block">
+                <div class="shop-header">
+                  <h4>Seeds</h4>
+                  <span id="shopSeedRestock" class="shop-restock">--:--</span>
+                </div>
+                <div id="shopSeedList" class="shop-list"></div>
               </div>
-              <div id="shopSeedList" class="shop-list"></div>
+              <div class="shop-block">
+                <div class="shop-header">
+                  <h4>Tools</h4>
+                  <span id="shopToolRestock" class="shop-restock">--:--</span>
+                </div>
+                <div id="shopToolList" class="shop-list"></div>
+              </div>
+              <div class="shop-block">
+                <div class="shop-header">
+                  <h4>Eggs</h4>
+                  <span id="shopEggRestock" class="shop-restock">--:--</span>
+                </div>
+                <div id="shopEggList" class="shop-list"></div>
+              </div>
+              <div class="shop-block">
+                <div class="shop-header">
+                  <h4>Decors</h4>
+                  <span id="shopDecorRestock" class="shop-restock">--:--</span>
+                </div>
+                <div id="shopDecorList" class="shop-list"></div>
+              </div>
             </div>
-            <div class="shop-block">
-              <div class="shop-header">
-                <h4>Tools</h4>
-                <span id="shopToolRestock" class="shop-restock">--:--</span>
-              </div>
-              <div id="shopToolList" class="shop-list"></div>
+          </section>
+          <section class="card alerts-card" id="alertsCard">
+            <div class="alerts-header">
+              <h3>Alerts</h3>
             </div>
-            <div class="shop-block">
-              <div class="shop-header">
-                <h4>Eggs</h4>
-                <span id="shopEggRestock" class="shop-restock">--:--</span>
+            <div class="alerts-controls">
+            <select
+              id="alertShopSelect"
+              class="top-select alert-select"
+              aria-label="Shop filter"
+            >
+              <option value="seed">Seeds</option>
+              <option value="tool">Tools</option>
+              <option value="egg">Eggs</option>
+              <option value="decor">Decors</option>
+              <option value="pet">Pet</option>
+              <option value="weather">Weather</option>
+            </select>
+            <select
+              id="alertNotifySelect"
+              class="top-select alert-mode"
+              aria-label="Alert notifications"
+            >
+              <option value="windows">Windows notification</option>
+              <option value="sound">Sound only</option>
+            </select>
+          </div>
+            <div class="alerts-table">
+              <div class="alerts-row alerts-head">
+                <span class="alerts-cell">Item</span>
+                <span class="alerts-cell">Notify</span>
               </div>
-              <div id="shopEggList" class="shop-list"></div>
+              <div id="alertRows" class="alerts-rows"></div>
             </div>
-            <div class="shop-block">
-              <div class="shop-header">
-                <h4>Decors</h4>
-                <span id="shopDecorRestock" class="shop-restock">--:--</span>
+          </section>
+        </div>
+
+      </div>
+
+      <section class="dev-view hidden" id="devView">
+        <div class="dev-top">
+          <h2>Dev tools</h2>
+          <button id="devBackBtn" class="secondary small">Back</button>
+        </div>
+        <section class="card dev-card">
+          <div class="dev-stack">
+            <div class="dev-block">
+              <div class="dev-block-header">
+                <h4>WS traffic</h4>
+                <input
+                  id="trafficSearchInput"
+                  class="dev-search"
+                  type="search"
+                  placeholder="Search traffic..."
+                  aria-label="Search websocket traffic"
+                />
               </div>
-              <div id="shopDecorList" class="shop-list"></div>
+              <div id="trafficList" class="dev-list"></div>
+            </div>
+            <div class="dev-block">
+              <div class="dev-block-header">
+                <h4>Connection logs</h4>
+                <input
+                  id="connSearchInput"
+                  class="dev-search"
+                  type="search"
+                  placeholder="Search connections..."
+                  aria-label="Search connection logs"
+                />
+              </div>
+              <div id="connList" class="dev-list"></div>
             </div>
           </div>
         </section>
-      </div>
+      </section>
     </main>
 
+    <script src="sprites.js"></script>
     <script src="shops.js"></script>
     <script src="renderer.js"></script>
   </body>

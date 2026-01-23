@@ -10,9 +10,14 @@ const uptimeValue = document.getElementById('uptimeValue');
 const playerIdValue = document.getElementById('playerIdValue');
 const playerNameValue = document.getElementById('playerNameValue');
 const roomIdValue = document.getElementById('roomIdValue');
+const weatherValue = document.getElementById('weatherValue');
+const weatherIcon = document.getElementById('weatherIcon');
 const petList = document.getElementById('petList');
 const logList = document.getElementById('logList');
 const logSearchInput = document.getElementById('logSearchInput');
+const alertShopSelect = document.getElementById('alertShopSelect');
+const alertNotifySelect = document.getElementById('alertNotifySelect');
+const alertRows = document.getElementById('alertRows');
 const shopSeedList = document.getElementById('shopSeedList');
 const shopToolList = document.getElementById('shopToolList');
 const shopEggList = document.getElementById('shopEggList');
@@ -23,18 +28,28 @@ const shopEggRestock = document.getElementById('shopEggRestock');
 const shopDecorRestock = document.getElementById('shopDecorRestock');
 const formCard = document.querySelector('.form-card');
 const shopsCard = document.getElementById('shopsCard');
+const shopsColumn = document.getElementById('shopsColumn');
+const alertsCard = document.getElementById('alertsCard');
 const statusCard = document.getElementById('statusCard');
 const petCard = document.getElementById('petCard');
 const logsCard = document.getElementById('logsCard');
 const checkUpdateBtn = document.getElementById('checkUpdateBtn');
 const openUpdateBtn = document.getElementById('openUpdateBtn');
 const openGameBtn = document.getElementById('openGameBtn');
+const toggleDevBtn = document.getElementById('toggleDevBtn');
 const openGameSelect = document.getElementById('openGameSelect');
 const updateStatus = document.getElementById('updateStatus');
 const appRoot = document.querySelector('.app');
+const mainView = document.getElementById('mainView');
+const devView = document.getElementById('devView');
+const devBackBtn = document.getElementById('devBackBtn');
 const tabs = document.getElementById('tabs');
 const addTabBtn = document.getElementById('addTabBtn');
 const stackColumn = document.getElementById('stackColumn');
+const trafficList = document.getElementById('trafficList');
+const connList = document.getElementById('connList');
+const trafficSearchInput = document.getElementById('trafficSearchInput');
+const connSearchInput = document.getElementById('connSearchInput');
 const reconnectCountdown = document.getElementById('reconnectCountdown');
 const reconnectInputs = document.querySelectorAll(
   '.reconnect-card input[type="checkbox"][data-group]',
@@ -50,6 +65,7 @@ const reconnectBody = document.querySelector('.reconnect-body');
 const storageKeys = {
   sessions: 'mgafk.sessions',
   activeSession: 'mgafk.activeSession',
+  alerts: 'mgafk.alerts',
 };
 
 const PET_HUNGER_COSTS = {
@@ -110,7 +126,40 @@ const RECONNECT_DELAY_KEYS = {
 };
 
 const DEFAULT_GAME_URL = 'https://magicgarden.gg';
+const SHOP_LABELS = {
+  seed: 'Seeds',
+  tool: 'Tools',
+  egg: 'Eggs',
+  decor: 'Decors',
+};
+const RESTOCK_SECONDS = {
+  seed: 300,
+  tool: 600,
+  egg: 900,
+  decor: 3600,
+};
+const WEATHER_ALERTS = [
+  { key: 'Clear Skies', label: 'Clear Skies' },
+  { key: 'Rain', label: 'Rain' },
+  { key: 'Snow', label: 'Snow' },
+  { key: 'Amber Moon', label: 'Amber Moon' },
+  { key: 'Dawn', label: 'Dawn' },
+];
+const WEATHER_ICON_LABELS = {
+  'Clear Skies': ['Sunny', 'ClearSkies', 'WeatherSunny'],
+  Rain: ['Rain', 'WeatherRain'],
+  Snow: ['Snow', 'WeatherSnow', 'Frost'],
+  'Amber Moon': ['AmberMoon', 'AmberMoonWeather', 'Amber'],
+  Dawn: ['Dawn', 'WeatherDawn'],
+};
+const PET_HUNGER_ALERT_ITEM = 'hunger<5';
+const PET_HUNGER_THRESHOLD = 5;
+const isAlertShop = (value) =>
+  value === 'weather' ||
+  value === 'pet' ||
+  Object.prototype.hasOwnProperty.call(SHOP_LABELS, value);
 let lastSize = { width: 0, height: 0 };
+let lastMainSize = null;
 let reconnectState = JSON.parse(JSON.stringify(DEFAULT_RECONNECT));
 let activeSessionId = '';
 const sessions = [];
@@ -126,6 +175,7 @@ const logVirtualState = {
 };
 const logSpacer = document.createElement('div');
 const logItems = document.createElement('div');
+const DEV_LOG_LIMIT = 300;
 
 if (logList) {
   logSpacer.className = 'log-spacer';
@@ -134,6 +184,104 @@ if (logList) {
 }
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
+
+const DEFAULT_ALERT_STATE = {
+  shop: 'seed',
+  notifyMode: 'windows',
+  selected: {},
+  catalog: { seed: [], tool: [], egg: [], decor: [] },
+  triggered: {},
+};
+
+const normalizeAlertCatalog = (catalog) => {
+  const base = { seed: [], tool: [], egg: [], decor: [] };
+  if (!catalog || typeof catalog !== 'object') return base;
+  Object.keys(base).forEach((key) => {
+    const items = Array.isArray(catalog[key]) ? catalog[key] : [];
+    base[key] = items
+      .map((item) => ({
+        name: item?.name,
+        stock: Number.isFinite(item?.stock) ? item.stock : Number(item?.stock) || 0,
+      }))
+      .filter((item) => item.name);
+  });
+  return base;
+};
+
+const normalizeAlertState = (value) => {
+  const next = clone(DEFAULT_ALERT_STATE);
+  if (!value || typeof value !== 'object') return next;
+  next.shop = isAlertShop(value.shop) ? value.shop : next.shop;
+  const mode = String(value.notifyMode || '').toLowerCase();
+  next.notifyMode = mode === 'sound' ? 'sound' : 'windows';
+  next.selected = value.selected && typeof value.selected === 'object' ? value.selected : {};
+  next.catalog = normalizeAlertCatalog(value.catalog);
+  next.triggered = value.triggered && typeof value.triggered === 'object' ? value.triggered : {};
+  return next;
+};
+
+let alertState = normalizeAlertState(null);
+
+const loadAlertState = () => {
+  const raw = localStorage.getItem(storageKeys.alerts);
+  if (!raw) return normalizeAlertState(null);
+  try {
+    return normalizeAlertState(JSON.parse(raw));
+  } catch {
+    return normalizeAlertState(null);
+  }
+};
+
+const persistAlertState = () => {
+  const payload = {
+    shop: alertState.shop,
+    notifyMode: alertState.notifyMode || 'windows',
+    selected: alertState.selected || {},
+    catalog: alertState.catalog || {},
+  };
+  localStorage.setItem(storageKeys.alerts, JSON.stringify(payload));
+};
+
+const updateAlertCatalog = (catalog) => {
+  const nextCatalog = normalizeAlertCatalog(catalog);
+  alertState.catalog = nextCatalog;
+  persistAlertState();
+};
+
+alertState = loadAlertState();
+
+const buildTrayPets = (session) => {
+  if (!session || !Array.isArray(session.pets)) return [];
+  return session.pets.map((pet) => {
+    const label = pet.name || pet.species || `Pet ${Number(pet.index || 0) + 1}`;
+    const limit = getHungerLimit(pet.species);
+    let hungerPct = null;
+    if (Number.isFinite(pet.hunger) && limit) {
+      hungerPct = Math.min(100, Math.max(0, (pet.hunger / limit) * 100));
+    }
+    return { label, hungerPct };
+  });
+};
+
+const syncTraySession = (session) => {
+  if (!session || !window.api?.setTraySession) return;
+  window.api.setTraySession({
+    id: session.id,
+    name: session.name,
+    connected: Boolean(session.connected),
+    room: session.room || '',
+    roomId: session.roomId || '',
+    gameUrl: session.gameUrl || '',
+    pets: buildTrayPets(session),
+  });
+};
+
+const syncAllTraySessions = () => {
+  sessions.forEach((session) => syncTraySession(session));
+  if (window.api?.setActiveSession) {
+    window.api.setActiveSession({ sessionId: activeSessionId });
+  }
+};
 
 const generateSessionId = () => {
   if (window.crypto?.randomUUID) return window.crypto.randomUUID();
@@ -199,9 +347,20 @@ const createSession = (seed = {}, index = 1) => {
     playerId: '-',
     playerName: '-',
     roomId: '-',
+    weather: '-',
     pets: [],
+    petHungerAlerts: {},
+    petHungerInitialized: false,
     logs: [],
     logQuery: String(seed.logQuery || ''),
+    trafficLogs: [],
+    connLogs: [],
+    trafficQuery: '',
+    connQuery: '',
+    alertCatalogSynced: false,
+    restockTimers: { seed: null, tool: null, egg: null, decor: null },
+    restockInitialized: false,
+    weatherInitialized: false,
     shops: { seed: [], tool: [], egg: [], decor: [], restock: {} },
   };
 };
@@ -219,6 +378,7 @@ const persistSessions = () => {
   }));
   localStorage.setItem(storageKeys.sessions, JSON.stringify(payload));
   localStorage.setItem(storageKeys.activeSession, activeSessionId);
+  syncAllTraySessions();
 };
 
 const getActiveSession = () => sessions.find((session) => session.id === activeSessionId);
@@ -234,10 +394,16 @@ const setUpdateStatus = (msg) => {
   if (updateStatus) updateStatus.textContent = msg ? String(msg) : '';
 };
 
+const setTrayUpdateStatus = (msg) => {
+  if (!window.api?.setTrayUpdateStatus) return;
+  window.api.setTrayUpdateStatus({ text: msg ? String(msg) : '' });
+};
+
 const runUpdateCheck = async ({ showProgress = false } = {}) => {
   if (!window.api?.checkUpdate) return;
   if (showProgress && checkUpdateBtn) checkUpdateBtn.disabled = true;
   if (showProgress) setUpdateStatus('Checking...');
+  if (showProgress) setTrayUpdateStatus('Checking...');
   if (openUpdateBtn) {
     openUpdateBtn.classList.add('hidden');
     openUpdateBtn.textContent = 'Download';
@@ -246,12 +412,15 @@ const runUpdateCheck = async ({ showProgress = false } = {}) => {
     const result = await window.api.checkUpdate();
     if (!result || result.status === 'error') {
       if (showProgress) {
-        setUpdateStatus(result?.message || 'Update check failed.');
+        const msg = result?.message || 'Update check failed.';
+        setUpdateStatus(msg);
+        setTrayUpdateStatus(msg);
       }
       return;
     }
     if (result.status === 'no-release') {
       setUpdateStatus('No releases yet.');
+      setTrayUpdateStatus('No releases yet.');
       if (openUpdateBtn && result.url) {
         openUpdateBtn.dataset.url = result.url;
         openUpdateBtn.textContent = 'Open releases';
@@ -260,7 +429,9 @@ const runUpdateCheck = async ({ showProgress = false } = {}) => {
       return;
     }
     if (result.status === 'available') {
-      setUpdateStatus(`Update available (${result.latestVersion})`);
+      const msg = `Update available (${result.latestVersion})`;
+      setUpdateStatus(msg);
+      setTrayUpdateStatus(msg);
       if (openUpdateBtn && result.url) {
         openUpdateBtn.dataset.url = result.url;
         openUpdateBtn.textContent = 'Download';
@@ -269,9 +440,12 @@ const runUpdateCheck = async ({ showProgress = false } = {}) => {
       return;
     }
     setUpdateStatus('Up to date');
+    setTrayUpdateStatus('Up to date');
   } catch (err) {
     if (showProgress) {
-      setUpdateStatus(err && err.message ? err.message : 'Update check failed.');
+      const msg = err && err.message ? err.message : 'Update check failed.';
+      setUpdateStatus(msg);
+      setTrayUpdateStatus(msg);
     }
   } finally {
     if (showProgress && checkUpdateBtn) checkUpdateBtn.disabled = false;
@@ -333,9 +507,21 @@ const renderPets = (pets) => {
     const item = document.createElement('div');
     item.className = 'pet-item';
 
+    const labelWrap = document.createElement('span');
+    labelWrap.className = 'pet-label';
+
+    const icon = document.createElement('img');
+    icon.className = 'item-sprite sprite-placeholder';
+    icon.alt = '';
+    icon.loading = 'lazy';
+    icon.decoding = 'async';
+
     const name = document.createElement('span');
     name.className = 'label';
     name.textContent = pet.name || pet.species || `Pet ${Number(pet.index || 0) + 1}`;
+
+    labelWrap.appendChild(icon);
+    labelWrap.appendChild(name);
 
     const hunger = document.createElement('span');
     hunger.className = 'pet-hunger';
@@ -347,9 +533,28 @@ const renderPets = (pets) => {
       hunger.textContent = '-';
     }
 
-    item.appendChild(name);
+    item.appendChild(labelWrap);
     item.appendChild(hunger);
     petList.appendChild(item);
+
+    const species = pet.species || '';
+    if (window.spriteResolver?.getIcon && species) {
+      const request = window.spriteResolver.getIcon({
+        shop: 'pet',
+        item: species,
+        size: 16,
+        mutation: pet.mutations,
+      });
+      if (request && typeof request.then === 'function') {
+        request
+          .then((url) => {
+            if (!url) return;
+            icon.src = url;
+            icon.classList.remove('sprite-placeholder');
+          })
+          .catch(() => {});
+      }
+    }
   });
 };
 
@@ -359,6 +564,373 @@ const renderLogs = (logs) => {
   logVirtualState.lastStart = -1;
   logVirtualState.lastEnd = -1;
   scheduleLogRender();
+};
+
+const getAlertKey = (shop, item) => `${shop}|${item}`;
+const PET_HUNGER_ALERT_KEY = getAlertKey('pet', PET_HUNGER_ALERT_ITEM);
+let weatherIconKey = '';
+
+const resolveWeatherKey = (value) => {
+  const text = String(value || '').trim().toLowerCase();
+  if (!text) return '';
+  const match = WEATHER_ALERTS.find(
+    (option) => option.key.toLowerCase() === text || option.label.toLowerCase() === text,
+  );
+  return match ? match.key : '';
+};
+
+const getWeatherCandidates = (value) => {
+  const key = resolveWeatherKey(value) || String(value || '').trim();
+  if (!key) return [];
+  const candidates = WEATHER_ICON_LABELS[key] || [key];
+  return candidates.filter(Boolean);
+};
+
+const resolveWeatherIconUrl = async (value) => {
+  if (!window.spriteResolver?.getIcon) return null;
+  const candidates = getWeatherCandidates(value);
+  for (const candidate of candidates) {
+    const url = await window.spriteResolver.getIcon({
+      shop: 'ui',
+      item: candidate,
+      size: 16,
+    });
+    if (url) return url;
+  }
+  return null;
+};
+
+const updateWeatherIcon = async (value) => {
+  if (!weatherIcon) return;
+  const key = resolveWeatherKey(value) || String(value || '').trim();
+  if (!key) {
+    weatherIconKey = '';
+    weatherIcon.removeAttribute('src');
+    weatherIcon.classList.add('sprite-placeholder');
+    return;
+  }
+  if (weatherIconKey === key) return;
+  weatherIconKey = key;
+  weatherIcon.removeAttribute('src');
+  weatherIcon.classList.add('sprite-placeholder');
+  const url = await resolveWeatherIconUrl(key);
+  if (!url) return;
+  weatherIcon.src = url;
+  weatherIcon.classList.remove('sprite-placeholder');
+};
+
+const buildAlertRows = () => {
+  const rows = [];
+  const selectedShop = isAlertShop(alertState.shop) ? alertState.shop : 'seed';
+  if (selectedShop === 'weather') {
+    WEATHER_ALERTS.forEach((option) => {
+      rows.push({ shopKey: 'weather', item: option.label, key: option.key, stock: 0 });
+    });
+    return rows;
+  }
+  if (selectedShop === 'pet') {
+    rows.push({
+      shopKey: 'pet',
+      item: 'Pet hunger < 5%',
+      key: PET_HUNGER_ALERT_ITEM,
+      stock: 0,
+    });
+    return rows;
+  }
+
+  const items = Array.isArray(alertState.catalog?.[selectedShop])
+    ? alertState.catalog[selectedShop]
+    : [];
+  items.forEach((entry) => {
+    if (!entry?.name) return;
+    const row = {
+      shopKey: selectedShop,
+      item: entry.name,
+      key: entry.name,
+      stock: entry.stock,
+    };
+    rows.push(row);
+  });
+
+  return rows;
+};
+
+
+const renderAlertTable = () => {
+  if (!alertRows) return;
+  alertRows.innerHTML = '';
+  const rows = buildAlertRows();
+  if (rows.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'alerts-row';
+    empty.innerHTML = '<span class="alerts-cell">No items</span><span></span>';
+    alertRows.appendChild(empty);
+    return;
+  }
+
+  rows.forEach((row) => {
+    const item = document.createElement('div');
+    item.className = 'alerts-row';
+
+    const itemCell = document.createElement('div');
+    itemCell.className = 'alerts-item';
+
+    if (row.shopKey !== 'pet') {
+      const icon = document.createElement('img');
+      icon.className = 'item-sprite sprite-placeholder';
+      icon.alt = '';
+      icon.loading = 'lazy';
+      icon.decoding = 'async';
+      itemCell.appendChild(icon);
+
+      if (row.shopKey === 'weather') {
+        resolveWeatherIconUrl(row.item)
+          .then((url) => {
+            if (!url) return;
+            icon.src = url;
+            icon.classList.remove('sprite-placeholder');
+          })
+          .catch(() => {});
+      } else if (window.spriteResolver?.getIcon && row.item) {
+        const request = window.spriteResolver.getIcon({
+          shop: row.shopKey,
+          item: row.item,
+          size: 16,
+        });
+        if (request && typeof request.then === 'function') {
+          request
+            .then((url) => {
+              if (!url) return;
+              icon.src = url;
+              icon.classList.remove('sprite-placeholder');
+            })
+            .catch(() => {});
+        }
+      }
+    }
+
+    const text = document.createElement('span');
+    text.textContent = row.item;
+    itemCell.appendChild(text);
+
+    const toggle = document.createElement('input');
+    toggle.type = 'checkbox';
+    toggle.className = 'alert-toggle';
+    const key = getAlertKey(row.shopKey, row.key || row.item);
+    toggle.checked = Boolean(alertState.selected?.[key]);
+    toggle.addEventListener('change', () => {
+      alertState.selected = alertState.selected || {};
+      alertState.selected[key] = toggle.checked;
+      persistAlertState();
+      checkShopAlerts();
+      if (key === PET_HUNGER_ALERT_KEY) {
+        resetPetHungerState();
+      }
+    });
+
+    item.appendChild(itemCell);
+    item.appendChild(toggle);
+    alertRows.appendChild(item);
+  });
+};
+
+const ALERT_SOUND_URL = (() => {
+  try {
+    return new URL('assets/notif.mp3', window.location.href).toString();
+  } catch {
+    return 'assets/notif.mp3';
+  }
+})();
+
+const PET_HUNGER_SOUND_URL = (() => {
+  try {
+    return new URL('assets/pethunger.mp3', window.location.href).toString();
+  } catch {
+    return 'assets/pethunger.mp3';
+  }
+})();
+
+const playAlertSound = async (url = ALERT_SOUND_URL) => {
+  if (!url) return;
+  const audio = new Audio(url);
+  audio.volume = 0.9;
+  try {
+    await audio.play();
+  } catch {
+    // Ignore blocked playback.
+  }
+};
+
+const getNotifyMode = () =>
+  alertState.notifyMode === 'sound' ? 'sound' : 'windows';
+
+const buildNotificationBody = (title, body) => {
+  const header = String(title || '').trim();
+  const detail = String(body || '').trim();
+  if (header && detail) return `${header}\n${detail}`;
+  return header || detail || 'Notification';
+};
+
+const notifyAlert = async ({ title, body, sound } = {}) => {
+  if (getNotifyMode() === 'sound') {
+    const soundUrl = sound === 'petHunger' ? PET_HUNGER_SOUND_URL : ALERT_SOUND_URL;
+    await playAlertSound(soundUrl);
+    return;
+  }
+  if (!window.api?.notify) return;
+  window.api.notify({ title: 'MG AFK', body: buildNotificationBody(title, body) });
+};
+
+const notifyShopRestock = (shopLabel, items) => {
+  if (!Array.isArray(items) || items.length === 0) return;
+  const title = `Shop restock: ${shopLabel}`;
+  const body = items.map((item) => item.name).join(', ');
+  notifyAlert({ title, body });
+};
+
+const notifyWeatherChange = (weather) => {
+  const title = 'Weather update';
+  const body = `Weather: ${weather}`;
+  notifyAlert({ title, body });
+};
+
+const notifyPetHunger = (pets) => {
+  if (!Array.isArray(pets) || pets.length === 0) return;
+  const title = 'Pet hunger alert';
+  const body = pets
+    .map((pet) => `${pet.label} ${Math.round(pet.pct)}%`)
+    .join(', ');
+  notifyAlert({ title, body, sound: 'petHunger' });
+};
+
+const resetPetHungerState = () => {
+  sessions.forEach((session) => {
+    session.petHungerAlerts = {};
+    session.petHungerInitialized = false;
+  });
+};
+
+const checkPetHungerAlerts = (session) => {
+  if (!session) return;
+  const enabled = Boolean(alertState.selected?.[PET_HUNGER_ALERT_KEY]);
+  if (!enabled) {
+    session.petHungerAlerts = {};
+    session.petHungerInitialized = false;
+    return;
+  }
+
+  const pets = Array.isArray(session.pets) ? session.pets : [];
+  if (!pets.length) {
+    session.petHungerAlerts = {};
+    session.petHungerInitialized = true;
+    return;
+  }
+
+  const prev = session.petHungerAlerts || {};
+  const next = {};
+  const newlyLow = [];
+
+  pets.forEach((pet) => {
+    const pct = getPetHungerPct(pet);
+    if (pct == null) return;
+    const key = getPetKey(pet);
+    const isLow = pct < PET_HUNGER_THRESHOLD;
+    next[key] = isLow;
+    if (session.petHungerInitialized && isLow && !prev[key]) {
+      newlyLow.push({ label: getPetLabel(pet), pct });
+    }
+  });
+
+  session.petHungerAlerts = next;
+  if (!session.petHungerInitialized) {
+    session.petHungerInitialized = true;
+    return;
+  }
+  if (newlyLow.length) {
+    notifyPetHunger(newlyLow);
+  }
+};
+
+const shouldNotifyRestock = (shopKey, items) => {
+  if (!items.length) return false;
+  const alerts = alertState.selected || {};
+  return items.some((item) => alerts[getAlertKey(shopKey, item.name)]);
+};
+
+const checkWeatherAlerts = (session, nextWeather) => {
+  if (!session) return;
+  const prevWeather = session.weather;
+  const initialized = session.weatherInitialized;
+  session.weatherInitialized = true;
+  if (!initialized) return;
+  if (!prevWeather || !nextWeather || prevWeather === nextWeather) return;
+  const key = resolveWeatherKey(nextWeather);
+  if (!key) return;
+  const enabled = Boolean(alertState.selected?.[getAlertKey('weather', key)]);
+  if (!enabled) return;
+  notifyWeatherChange(nextWeather);
+};
+
+const checkShopRestocks = (session, payload) => {
+  if (!session || !payload?.restock) return;
+  const prev = session.restockTimers || {};
+  const next = payload.restock || {};
+  const initialized = session.restockInitialized;
+  session.restockTimers = { ...next };
+  session.restockInitialized = true;
+  if (!initialized) return;
+  const soundOnly = getNotifyMode() === 'sound';
+  let shouldPlaySound = false;
+
+  Object.entries(SHOP_LABELS).forEach(([shopKey, label]) => {
+    const prevValue = prev?.[shopKey];
+    const nextValue = next?.[shopKey];
+    if (!Number.isFinite(prevValue) || !Number.isFinite(nextValue)) return;
+    const jumped = nextValue > prevValue;
+    if (!jumped) return;
+    const duration = RESTOCK_SECONDS[shopKey];
+    const nearFull = Number.isFinite(duration) ? duration - 2 : null;
+    const items = Array.isArray(payload[shopKey]) ? payload[shopKey] : [];
+    if (nearFull == null || nextValue < nearFull) return;
+    if (!items.length) return;
+    if (!shouldNotifyRestock(shopKey, items)) return;
+    const selectedItems = items.filter(
+      (item) => item?.name && alertState.selected?.[getAlertKey(shopKey, item.name)],
+    );
+    if (!selectedItems.length) return;
+    if (soundOnly) {
+      shouldPlaySound = true;
+      return;
+    }
+    notifyShopRestock(label, selectedItems);
+  });
+  if (soundOnly && shouldPlaySound) {
+    void playAlertSound();
+  }
+};
+
+const checkShopAlerts = () => {
+  const catalog = alertState.catalog || {};
+  const triggered = alertState.triggered || {};
+  Object.entries(SHOP_LABELS).forEach(([shopKey, label]) => {
+    const items = Array.isArray(catalog[shopKey]) ? catalog[shopKey] : [];
+    items.forEach((entry) => {
+      if (!entry?.name) return;
+      const key = getAlertKey(shopKey, entry.name);
+      const enabled = Boolean(alertState.selected?.[key]);
+      const available = Number(entry.stock) > 0;
+      if (!enabled) {
+        triggered[key] = false;
+        return;
+      }
+      if (!available) {
+        triggered[key] = false;
+        return;
+      }
+      triggered[key] = true;
+    });
+  });
+  alertState.triggered = triggered;
 };
 
 const getFilteredLogs = (session) => {
@@ -385,6 +957,31 @@ const renderShops = (payload) => {
     },
     payload,
   );
+};
+
+const applyAlertStateToUI = () => {
+  if (alertShopSelect) {
+    const options = Array.from(alertShopSelect.options);
+    const match = options.find((opt) => opt.value === alertState.shop);
+    const nextValue = match ? alertState.shop : options[0]?.value || 'seed';
+    alertShopSelect.value = nextValue;
+    if (alertState.shop !== nextValue) {
+      alertState.shop = nextValue;
+      persistAlertState();
+    }
+  }
+  if (alertNotifySelect) {
+    const options = Array.from(alertNotifySelect.options);
+    const match = options.find((opt) => opt.value === alertState.notifyMode);
+    const nextValue = match ? alertState.notifyMode : options[0]?.value || 'windows';
+    alertNotifySelect.value = nextValue;
+    if (alertState.notifyMode !== nextValue) {
+      alertState.notifyMode = nextValue;
+      persistAlertState();
+    }
+  }
+  renderAlertTable();
+  checkShopAlerts();
 };
 
 const applySessionToUI = (session) => {
@@ -414,11 +1011,18 @@ const applySessionToUI = (session) => {
   playerIdValue.textContent = session.playerId || '-';
   if (playerNameValue) playerNameValue.textContent = session.playerName || '-';
   if (roomIdValue) roomIdValue.textContent = session.roomId || '-';
+  if (weatherValue) weatherValue.textContent = session.weather || '-';
+  void updateWeatherIcon(session.weather);
 
   renderPets(session.pets || []);
   if (logSearchInput) logSearchInput.value = session.logQuery || '';
+  if (trafficSearchInput) trafficSearchInput.value = session.trafficQuery || '';
+  if (connSearchInput) connSearchInput.value = session.connQuery || '';
   renderLogs(getFilteredLogs(session));
+  renderTrafficLogs(session);
+  renderConnLogs(session);
   renderShops(session.shops || { seed: [], tool: [], egg: [], decor: [], restock: {} });
+  applyAlertStateToUI();
 
   if (!session.reconnect) session.reconnect = clone(DEFAULT_RECONNECT);
   reconnectState = session.reconnect;
@@ -434,8 +1038,15 @@ const resetSessionStats = (session) => {
   session.playerId = '-';
   session.playerName = '-';
   session.roomId = '-';
+  session.weather = '-';
   session.pets = [];
+  session.petHungerAlerts = {};
+  session.petHungerInitialized = false;
   session.logs = [];
+  session.alertCatalogSynced = false;
+  session.restockTimers = { seed: null, tool: null, egg: null, decor: null };
+  session.restockInitialized = false;
+  session.weatherInitialized = false;
   session.shops = { seed: [], tool: [], egg: [], decor: [], restock: {} };
 };
 
@@ -445,6 +1056,12 @@ async function removeSession(id) {
   const [removed] = sessions.splice(index, 1);
   if (removed?.connected || removed?.busy) {
     await window.api.disconnect({ sessionId: removed.id });
+  }
+  if (window.api?.dispose) {
+    await window.api.dispose({ sessionId: removed.id });
+  }
+  if (window.api?.setTraySession) {
+    window.api.setTraySession({ id: removed.id, removed: true });
   }
   if (sessions.length === 0) {
     sessions.push(createSession({}, 1));
@@ -503,6 +1120,10 @@ const setActiveSession = (id) => {
   persistSessions();
   applySessionToUI(target);
   renderTabs();
+  if (window.api?.setActiveSession) {
+    window.api.setActiveSession({ sessionId: activeSessionId });
+  }
+  syncTraySession(target);
 };
 
 const saveInputs = () => {
@@ -511,6 +1132,22 @@ const saveInputs = () => {
   session.cookie = cookieInput.value;
   if (roomInput) session.room = roomInput.value;
   persistSessions();
+};
+
+const maybeMigrateLegacyAlerts = (parsed) => {
+  if (localStorage.getItem(storageKeys.alerts)) return;
+  if (!Array.isArray(parsed) || parsed.length === 0) return;
+  const legacy = parsed.find(
+    (entry) => entry?.shopAlerts || entry?.alertShop || entry?.alertsQuery,
+  );
+  if (!legacy) return;
+  alertState = normalizeAlertState({
+    shop: legacy.alertShop,
+    query: legacy.alertsQuery,
+    selected: legacy.shopAlerts,
+    catalog: legacy.shopCatalog || alertState.catalog,
+  });
+  persistAlertState();
 };
 
 const loadSessions = () => {
@@ -524,6 +1161,7 @@ const loadSessions = () => {
       parsed = [];
     }
   }
+  maybeMigrateLegacyAlerts(parsed);
   if (Array.isArray(parsed) && parsed.length) {
     parsed.forEach((session, index) => {
       sessions.push(createSession(session, index + 1));
@@ -647,6 +1285,315 @@ const getHungerLimit = (species) => {
   return PET_HUNGER_COSTS[key] || null;
 };
 
+const copyTextToClipboard = async (text) => {
+  if (!text) return false;
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // fall back to execCommand
+    }
+  }
+  const el = document.createElement('textarea');
+  el.value = text;
+  el.setAttribute('readonly', 'true');
+  el.style.position = 'fixed';
+  el.style.opacity = '0';
+  document.body.appendChild(el);
+  el.select();
+  let ok = false;
+  try {
+    ok = document.execCommand('copy');
+  } catch {
+    ok = false;
+  }
+  document.body.removeChild(el);
+  return ok;
+};
+
+const formatLogTime = (ts) =>
+  new Date(ts).toLocaleTimeString('fr-FR', { hour12: false });
+
+const truncateText = (text, max = 180) => {
+  const value = String(text || '');
+  if (value.length <= max) return value;
+  return `${value.slice(0, max - 1)}…`;
+};
+
+const parseTrafficMessage = (text) => {
+  const raw = String(text || '');
+  const trimmed = raw.trim();
+  if (!trimmed) return { parsed: null, type: '' };
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+    return { parsed: null, type: '' };
+  }
+  try {
+    const parsed = JSON.parse(trimmed);
+    const type =
+      parsed && typeof parsed === 'object' && typeof parsed.type === 'string'
+        ? parsed.type
+        : '';
+    return { parsed, type };
+  } catch {
+    return { parsed: null, type: '' };
+  }
+};
+
+const buildTrafficEntry = (payload) => {
+  const ts = Number(payload?.ts) || Date.now();
+  const direction = payload?.direction === 'out' ? 'out' : 'in';
+  const text = String(payload?.text || '');
+  const { parsed, type } = parseTrafficMessage(text);
+  const copyText = parsed ? JSON.stringify(parsed, null, 2) : text;
+  const preview = truncateText(parsed ? JSON.stringify(parsed) : text);
+  const search = `${direction} ${type} ${text}`.toLowerCase();
+  return { ts, direction, text, type, preview, copyText, search };
+};
+
+const buildConnEntry = (payload) => {
+  const ts = Number(payload?.ts) || Date.now();
+  const level = String(payload?.level || 'info');
+  const message = String(payload?.message || '');
+  const detail = String(payload?.detail || '');
+  const text = [message, detail].filter(Boolean).join(' | ');
+  const preview = truncateText(text);
+  const copyText = text;
+  const search = `${level} ${text}`.toLowerCase();
+  const lc = message.toLowerCase();
+  let badge = 'INFO';
+  let badgeClass = 'info';
+  if (lc.includes('connect ok')) {
+    badge = 'CONNECTED';
+    badgeClass = 'success';
+  } else if (lc.includes('connect request')) {
+    badge = 'CONNECT';
+    badgeClass = 'info';
+  } else if (lc.includes('connect failed')) {
+    badge = 'FAILED';
+    badgeClass = 'error';
+  } else if (lc.includes('ws disconnected')) {
+    badge = 'DISCONNECTED';
+    badgeClass = 'warn';
+  } else if (lc.includes('ws closed')) {
+    badge = 'DISCONNECTED';
+    badgeClass = 'warn';
+  } else if (lc.includes('ws error')) {
+    badge = 'ERROR';
+    badgeClass = 'error';
+  } else if (lc.includes('ws status')) {
+    badge = 'STATUS';
+    badgeClass = 'info';
+  } else if (lc.includes('game action')) {
+    badge = 'ACTION';
+    badgeClass = 'info';
+  } else if (level.toLowerCase() === 'error') {
+    badge = 'ERROR';
+    badgeClass = 'error';
+  }
+  const codeMatch = detail.match(/\b(1\d{3}|2\d{3}|3\d{3}|4\d{3}|5\d{3})\b/);
+  const code = codeMatch ? codeMatch[1] : '';
+  if (code === '4250' || code === '4300') {
+    badge = 'SUPERSEDED';
+    badgeClass = 'warn';
+  }
+  return {
+    ts,
+    level,
+    message,
+    detail,
+    preview,
+    copyText,
+    search,
+    badge,
+    badgeClass,
+    code,
+  };
+};
+
+const filterDevLogs = (logs, query) => {
+  const term = String(query || '').trim().toLowerCase();
+  if (!term) return logs;
+  return logs.filter((entry) => entry.search.includes(term));
+};
+
+const renderTrafficLogs = (session) => {
+  if (!trafficList) return;
+  trafficList.innerHTML = '';
+  const logs = filterDevLogs(session?.trafficLogs || [], session?.trafficQuery);
+  if (!logs.length) {
+    const empty = document.createElement('div');
+    empty.className = 'dev-row';
+    empty.textContent = 'No traffic yet';
+    trafficList.appendChild(empty);
+    return;
+  }
+  logs.forEach((entry) => {
+    const row = document.createElement('div');
+    row.className = 'dev-row';
+
+    const left = document.createElement('div');
+    left.className = 'dev-left';
+    const meta = document.createElement('div');
+    meta.className = 'dev-meta';
+
+    const dir = document.createElement('span');
+    dir.className = `dev-dir ${entry.direction}`;
+    dir.textContent = entry.direction === 'out' ? 'OUT' : 'IN';
+
+    const time = document.createElement('span');
+    time.textContent = formatLogTime(entry.ts);
+
+    meta.appendChild(dir);
+    meta.appendChild(time);
+
+    if (entry.type) {
+      const type = document.createElement('span');
+      type.textContent = entry.type;
+      meta.appendChild(type);
+    }
+
+    const text = document.createElement('div');
+    text.className = 'dev-text';
+    text.textContent = entry.preview;
+
+    left.appendChild(meta);
+    left.appendChild(text);
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'dev-copy';
+    copyBtn.textContent = entry.type ? 'Copy JSON' : 'Copy';
+    copyBtn.addEventListener('click', async () => {
+      await copyTextToClipboard(entry.copyText);
+    });
+
+    row.appendChild(left);
+    row.appendChild(copyBtn);
+    trafficList.appendChild(row);
+  });
+};
+
+const renderConnLogs = (session) => {
+  if (!connList) return;
+  connList.innerHTML = '';
+  const logs = filterDevLogs(session?.connLogs || [], session?.connQuery);
+  if (!logs.length) {
+    const empty = document.createElement('div');
+    empty.className = 'dev-row';
+    empty.textContent = 'No connection logs yet';
+    connList.appendChild(empty);
+    return;
+  }
+  logs.forEach((entry) => {
+    const row = document.createElement('div');
+    row.className = 'dev-row';
+
+    const left = document.createElement('div');
+    left.className = 'dev-left';
+    const meta = document.createElement('div');
+    meta.className = 'dev-meta';
+
+    const level = document.createElement('span');
+    level.className = `dev-dir ${entry.badgeClass}`;
+    level.textContent = entry.badge;
+
+    const time = document.createElement('span');
+    time.textContent = formatLogTime(entry.ts);
+
+    meta.appendChild(level);
+    meta.appendChild(time);
+    if (entry.code) {
+      const code = document.createElement('span');
+      code.textContent = `Code ${entry.code}`;
+      meta.appendChild(code);
+    }
+
+    const title = document.createElement('div');
+    title.className = 'dev-text';
+    title.textContent = entry.message || entry.preview;
+
+    const detail = document.createElement('div');
+    detail.className = 'dev-text muted';
+    detail.textContent = entry.detail || '';
+
+    left.appendChild(meta);
+    left.appendChild(title);
+    if (entry.detail) left.appendChild(detail);
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'dev-copy';
+    copyBtn.textContent = 'Copy';
+    copyBtn.addEventListener('click', async () => {
+      await copyTextToClipboard(entry.copyText);
+    });
+
+    row.appendChild(left);
+    row.appendChild(copyBtn);
+    connList.appendChild(row);
+  });
+};
+
+const setDevView = (show) => {
+  if (!mainView || !devView) return;
+  const next = Boolean(show);
+  if (
+    next &&
+    !mainView.classList.contains('hidden') &&
+    lastSize.width &&
+    lastSize.height
+  ) {
+    lastMainSize = { ...lastSize };
+  }
+  if (next && !lastMainSize && appRoot) {
+    const rect = appRoot.getBoundingClientRect();
+    if (rect.width && rect.height) {
+      lastMainSize = {
+        width: Math.ceil(rect.width + 8),
+        height: Math.ceil(rect.height + 8),
+      };
+    }
+  }
+  if (next && lastMainSize && appRoot) {
+    const maxWidth = Math.max(0, Math.round(lastMainSize.width - 8));
+    const maxHeight = Math.max(0, Math.round(lastMainSize.height - 8));
+    appRoot.style.maxWidth = `${maxWidth}px`;
+    appRoot.style.maxHeight = `${maxHeight}px`;
+  }
+  if (!next && appRoot) {
+    appRoot.style.maxWidth = '';
+    appRoot.style.maxHeight = '';
+  }
+  if (!next && lastMainSize && window.api?.resizeTo) {
+    window.api.resizeTo({ ...lastMainSize });
+  }
+  mainView.classList.toggle('hidden', next);
+  devView.classList.toggle('hidden', !next);
+  const session = getActiveSession();
+  if (next && session) {
+    renderTrafficLogs(session);
+    renderConnLogs(session);
+  }
+  scheduleResize();
+};
+
+const getPetLabel = (pet) =>
+  pet?.name || pet?.species || `Pet ${Number(pet?.index || 0) + 1}`;
+
+const getPetKey = (pet) => {
+  const id = String(pet?.id || '').trim();
+  if (id) return `id:${id}`;
+  const name = String(pet?.name || '').trim();
+  const species = String(pet?.species || '').trim();
+  const index = Number.isFinite(pet?.index) ? pet.index : '';
+  return `pet:${name}|${species}|${index}`;
+};
+
+const getPetHungerPct = (pet) => {
+  const limit = getHungerLimit(pet?.species);
+  if (!Number.isFinite(pet?.hunger) || !limit) return null;
+  return Math.min(100, Math.max(0, (pet.hunger / limit) * 100));
+};
+
 const createLogElement = (payload) => {
   const item = document.createElement('div');
   item.className = 'log-item';
@@ -660,14 +1607,45 @@ const createLogElement = (payload) => {
 
   const message = document.createElement('div');
   message.className = 'log-message';
+
   const petLabel = payload.petName || payload.petSpecies || '';
   const pet = petLabel ? ` - ${petLabel}` : '';
-  message.textContent = `${payload.action || 'Ability'}${pet}`;
 
+  const icon = document.createElement('img');
+  icon.className = 'item-sprite sprite-placeholder log-sprite';
+  icon.alt = '';
+  icon.loading = 'lazy';
+  icon.decoding = 'async';
+
+  const text = document.createElement('span');
+  text.textContent = `${payload.action || 'Ability'}${pet}`;
+
+  message.appendChild(icon);
+  message.appendChild(text);
   row.appendChild(message);
 
   item.appendChild(time);
   item.appendChild(row);
+
+  const species = payload.petSpecies || payload.petName || '';
+  if (window.spriteResolver?.getIcon && species) {
+    const request = window.spriteResolver.getIcon({
+      shop: 'pet',
+      item: species,
+      size: 16,
+      mutation: payload.petMutations,
+    });
+    if (request && typeof request.then === 'function') {
+      request
+        .then((url) => {
+          if (!url) return;
+          icon.src = url;
+          icon.classList.remove('sprite-placeholder');
+        })
+        .catch(() => {});
+    }
+  }
+
   return item;
 };
 
@@ -761,6 +1739,13 @@ const requestResize = () => {
   const rect = appRoot.getBoundingClientRect();
   const width = Math.ceil(rect.width + 8);
   const height = Math.ceil(rect.height + 8);
+  if (
+    mainView &&
+    !mainView.classList.contains('hidden') &&
+    window.matchMedia('(min-width: 861px)').matches
+  ) {
+    lastMainSize = { width, height };
+  }
   if (Math.abs(width - lastSize.width) < 2 && Math.abs(height - lastSize.height) < 2) {
     return;
   }
@@ -782,10 +1767,10 @@ const scheduleResize = (() => {
 })();
 
 const syncLogHeight = () => {
-  if (!formCard || !shopsCard || !statusCard || !stackColumn) return;
+  if (!formCard || !shopsColumn || !statusCard || !stackColumn) return;
   if (logsCard?.style.height) logsCard.style.height = '';
   if (!window.matchMedia('(min-width: 861px)').matches) {
-    if (shopsCard.style.height) shopsCard.style.height = '';
+    if (shopsColumn.style.height) shopsColumn.style.height = '';
     if (stackColumn.style.height) stackColumn.style.height = '';
     return;
   }
@@ -795,8 +1780,8 @@ const syncLogHeight = () => {
   const span = statusRect.bottom - formRect.top;
   if (span > 0) {
     const next = `${Math.ceil(span)}px`;
-    if (shopsCard.style.height !== next) {
-      shopsCard.style.height = next;
+    if (shopsColumn.style.height !== next) {
+      shopsColumn.style.height = next;
     }
     if (stackColumn.style.height !== next) {
       stackColumn.style.height = next;
@@ -804,8 +1789,19 @@ const syncLogHeight = () => {
   }
 };
 
+const toggleSessionConnection = async (sessionId) => {
+  const session = sessionId ? getSessionById(sessionId) : getActiveSession();
+  if (!session || session.busy) return;
+  if (sessionId && session.id !== activeSessionId) {
+    setActiveSession(session.id);
+  }
+  toggleBtn.click();
+};
+
 loadSessions();
+syncAllTraySessions();
 setActiveSession(activeSessionId);
+window.spriteResolver?.preload?.();
 setupReconnectAnimation();
 cookieInput.addEventListener('input', saveInputs);
 roomInput?.addEventListener('input', saveInputs);
@@ -815,6 +1811,34 @@ logSearchInput?.addEventListener('input', () => {
   session.logQuery = logSearchInput.value;
   persistSessions();
   renderLogs(getFilteredLogs(session));
+});
+trafficSearchInput?.addEventListener('input', () => {
+  const session = getActiveSession();
+  if (!session) return;
+  session.trafficQuery = trafficSearchInput.value;
+  renderTrafficLogs(session);
+});
+connSearchInput?.addEventListener('input', () => {
+  const session = getActiveSession();
+  if (!session) return;
+  session.connQuery = connSearchInput.value;
+  renderConnLogs(session);
+});
+toggleDevBtn?.addEventListener('click', () => {
+  setDevView(true);
+});
+devBackBtn?.addEventListener('click', () => {
+  setDevView(false);
+});
+alertShopSelect?.addEventListener('change', () => {
+  alertState.shop = alertShopSelect.value;
+  persistAlertState();
+  renderAlertTable();
+  checkShopAlerts();
+});
+alertNotifySelect?.addEventListener('change', () => {
+  alertState.notifyMode = alertNotifySelect.value;
+  persistAlertState();
 });
 logList?.addEventListener('scroll', () => scheduleLogRender());
 openGameSelect?.addEventListener('change', () => {
@@ -874,7 +1898,11 @@ openUpdateBtn?.addEventListener('click', async () => {
 
 openGameBtn?.addEventListener('click', async () => {
   if (!window.api?.openExternal) return;
-  const url = openGameSelect?.value || 'https://magicgarden.gg';
+  const baseUrl = openGameSelect?.value || 'https://magicgarden.gg';
+  const session = getActiveSession();
+  const roomCode = session?.roomId || session?.room || '';
+  const safeBase = baseUrl.replace(/\/+$/, '');
+  const url = roomCode ? `${safeBase}/r/${roomCode}` : safeBase;
   await window.api.openExternal(url);
 });
 
@@ -921,6 +1949,19 @@ toggleBtn.addEventListener('click', async () => {
   if (result && result.error) setError(result.error);
 });
 
+window.api.onTrayToggle?.((payload) => {
+  toggleSessionConnection(payload?.sessionId);
+});
+
+window.api.onTraySelectSession?.((payload) => {
+  if (!payload?.sessionId) return;
+  setActiveSession(payload.sessionId);
+});
+
+window.api.onTrayCheckUpdate?.(() => {
+  runUpdateCheck({ showProgress: true });
+});
+
 const pushSessionLog = (session, payload) => {
   if (!session) return;
   session.logs.unshift(payload);
@@ -929,6 +1970,30 @@ const pushSessionLog = (session, payload) => {
   }
   if (session === getActiveSession()) {
     renderLogs(getFilteredLogs(session));
+  }
+};
+
+const pushTrafficLog = (session, payload) => {
+  if (!session) return;
+  const entry = buildTrafficEntry(payload);
+  session.trafficLogs.unshift(entry);
+  while (session.trafficLogs.length > DEV_LOG_LIMIT) {
+    session.trafficLogs.pop();
+  }
+  if (session === getActiveSession()) {
+    renderTrafficLogs(session);
+  }
+};
+
+const pushConnLog = (session, payload) => {
+  if (!session) return;
+  const entry = buildConnEntry(payload);
+  session.connLogs.unshift(entry);
+  while (session.connLogs.length > DEV_LOG_LIMIT) {
+    session.connLogs.pop();
+  }
+  if (session === getActiveSession()) {
+    renderConnLogs(session);
   }
 };
 
@@ -944,6 +2009,7 @@ window.api.onStatus((payload) => {
     session.reconnectCountdown = '';
     if (payload.playerId) session.playerId = payload.playerId;
     if (payload.room) session.roomId = payload.room;
+    syncTraySession(session);
     if (session === getActiveSession()) {
       setConnected(session, true);
       setStatusChip('connected');
@@ -960,6 +2026,11 @@ window.api.onStatus((payload) => {
     session.status = 'connecting';
     session.error = '';
     session.reconnectCountdown = '';
+    session.alertCatalogSynced = false;
+    if (session === getActiveSession()) {
+      weatherIconKey = '';
+    }
+    syncTraySession(session);
     if (session === getActiveSession()) {
       setConnected(session, false);
       setStatusChip('connecting');
@@ -978,6 +2049,8 @@ window.api.onStatus((payload) => {
       : '';
     session.reconnectCountdown =
       remaining > 0 ? `Reconnect in ${remaining}s${attempt}` : `Reconnecting...${attempt}`;
+    session.alertCatalogSynced = false;
+    syncTraySession(session);
     if (session === getActiveSession()) {
       setConnected(session, false);
       setStatusChip('connecting');
@@ -992,6 +2065,7 @@ window.api.onStatus((payload) => {
     session.error = payload.message || 'Connection error.';
     session.reconnectCountdown = '';
     resetSessionStats(session);
+    syncTraySession(session);
     if (session === getActiveSession()) {
       applySessionToUI(session);
     }
@@ -1004,10 +2078,18 @@ window.api.onStatus((payload) => {
     session.error = '';
     session.reconnectCountdown = '';
     resetSessionStats(session);
+    syncTraySession(session);
     if (session === getActiveSession()) {
       applySessionToUI(session);
     }
   }
+});
+
+window.api.onDebug?.((payload) => {
+  if (!payload) return;
+  const session = getSessionById(payload.sessionId);
+  if (!session) return;
+  pushConnLog(session, payload);
 });
 
 window.api.onPlayers((payload) => {
@@ -1037,22 +2119,36 @@ window.api.onAbilityLog((payload) => {
   pushSessionLog(session, payload);
 });
 
+window.api.onTraffic?.((payload) => {
+  if (!payload) return;
+  const session = getSessionById(payload.sessionId);
+  if (!session) return;
+  pushTrafficLog(session, payload);
+});
+
 window.api.onLiveStatus((payload) => {
   if (!payload) return;
   const session = getSessionById(payload.sessionId);
   if (!session) return;
+  const nextWeather = payload.weather || '-';
+  checkWeatherAlerts(session, nextWeather);
   session.playerName = payload.playerName || '-';
   session.roomId = payload.roomId || '-';
+  session.weather = nextWeather;
   if (payload.playerId) session.playerId = payload.playerId;
   session.pets = Array.isArray(payload.pets) ? payload.pets : [];
+  checkPetHungerAlerts(session);
   if (payload.playerName && session.autoName) {
     session.name = payload.playerName;
     persistSessions();
     renderTabs();
   }
+  syncTraySession(session);
   if (session === getActiveSession()) {
     if (playerNameValue) playerNameValue.textContent = session.playerName;
     if (roomIdValue) roomIdValue.textContent = session.roomId;
+    if (weatherValue) weatherValue.textContent = session.weather;
+    void updateWeatherIcon(session.weather);
     if (playerIdValue) playerIdValue.textContent = session.playerId || '-';
     renderPets(session.pets);
     syncLogHeight();
@@ -1063,7 +2159,14 @@ window.api.onShops?.((payload) => {
   if (!payload) return;
   const session = getSessionById(payload.sessionId);
   if (!session) return;
+  checkShopRestocks(session, payload);
   session.shops = payload;
+  if (payload.catalog && typeof payload.catalog === 'object' && !session.alertCatalogSynced) {
+    updateAlertCatalog(payload.catalog);
+    session.alertCatalogSynced = true;
+    renderAlertTable();
+  }
+  checkShopAlerts();
   if (session === getActiveSession()) {
     renderShops(payload);
   }
