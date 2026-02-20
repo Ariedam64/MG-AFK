@@ -7,6 +7,9 @@ const {
   DEFAULT_VERSION,
   DEFAULT_UA,
   RETRY_MAX,
+  RETRY_DELAY_MS,
+  RETRY_JITTER_MS,
+  RETRY_MAX_DELAY_MS,
   KNOWN_CLOSE_CODES,
   RECONNECT_DELAY_GROUPS,
 } = require('./constants');
@@ -56,7 +59,7 @@ class RoomClient extends EventEmitter {
       unknown: true,
       delays: {
         supersededMs: 30000,
-        otherMs: 0,
+        otherMs: 1500,
       },
       codes: {
         4100: true,
@@ -423,18 +426,24 @@ class RoomClient extends EventEmitter {
   }
 
   _getReconnectDelay(code) {
-    const otherDelay = Math.max(0, this.reconnectConfig.delays.otherMs || 0);
-    if (!Number.isFinite(code)) return otherDelay;
-    if (!KNOWN_CLOSE_CODES.has(code)) return otherDelay;
-    if (RECONNECT_DELAY_GROUPS.superseded.has(code)) {
-      return Math.max(0, this.reconnectConfig.delays.supersededMs || 0);
+    let configuredDelay;
+    if (Number.isFinite(code) && RECONNECT_DELAY_GROUPS.superseded.has(code)) {
+      configuredDelay = Math.max(0, this.reconnectConfig.delays.supersededMs || 0);
+    } else {
+      configuredDelay = Math.max(0, this.reconnectConfig.delays.otherMs || 0);
     }
-    return otherDelay;
+    const base = Math.max(configuredDelay, RETRY_DELAY_MS);
+    const backoff = Math.min(
+      base * Math.pow(2, Math.max(0, this.retryCount - 1)),
+      RETRY_MAX_DELAY_MS,
+    );
+    const jitter = Math.floor(Math.random() * RETRY_JITTER_MS);
+    return backoff + jitter;
   }
 
   _getMaxRetries(code) {
-    if (code === 4800) return RETRY_MAX;
-    return 3;
+    if (code === 4800) return 5;
+    return RETRY_MAX;
   }
 
   _scheduleReconnect(code, reasonText) {
@@ -442,14 +451,8 @@ class RoomClient extends EventEmitter {
     const maxRetries = isInitial ? 5 : this._getMaxRetries(code);
     if (!isInitial && !this._shouldReconnect(code)) return false;
     if (!this.lastConnectOpts) return false;
-    if (!isInitial && this.retryCode !== code) {
-      this.retryCode = code;
-      this.retryCount = 0;
-    } else if (this.retryCode == null) {
-      this.retryCode = code;
-    }
+    this.retryCode = code;
     if (this.retryCount >= maxRetries) return false;
-    const isFirstTry = this.retryCount === 0;
     this.retryCount += 1;
     const attempt = this.retryCount;
     const delay = isInitial ? 0 : this._getReconnectDelay(code);

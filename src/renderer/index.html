@@ -16,6 +16,10 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <div class="loader" id="appLoader">
+      <div class="loader-spinner"></div>
+      <span class="loader-text">Loading...</span>
+    </div>
     <main class="app">
       <div class="main-layout" id="mainView">
         <div class="top-bar">
@@ -279,26 +283,34 @@
             <div class="dev-block">
               <div class="dev-block-header">
                 <h4>WS traffic</h4>
-                <input
-                  id="trafficSearchInput"
-                  class="dev-search"
-                  type="search"
-                  placeholder="Search traffic..."
-                  aria-label="Search websocket traffic"
-                />
+                <div class="dev-block-actions">
+                  <input
+                    id="trafficSearchInput"
+                    class="dev-search"
+                    type="search"
+                    placeholder="Search traffic..."
+                    aria-label="Search websocket traffic"
+                  />
+                  <button id="trafficCopyAllBtn" class="dev-action-btn" title="Export all traffic to clipboard">Export</button>
+                  <button id="trafficClearBtn" class="dev-action-btn" title="Clear traffic logs">Clear</button>
+                </div>
               </div>
               <div id="trafficList" class="dev-list"></div>
             </div>
             <div class="dev-block">
               <div class="dev-block-header">
                 <h4>Connection logs</h4>
-                <input
-                  id="connSearchInput"
-                  class="dev-search"
-                  type="search"
-                  placeholder="Search connections..."
-                  aria-label="Search connection logs"
-                />
+                <div class="dev-block-actions">
+                  <input
+                    id="connSearchInput"
+                    class="dev-search"
+                    type="search"
+                    placeholder="Search connections..."
+                    aria-label="Search connection logs"
+                  />
+                  <button id="connCopyAllBtn" class="dev-action-btn" title="Export all connection logs to clipboard">Export</button>
+                  <button id="connClearBtn" class="dev-action-btn" title="Clear connection logs">Clear</button>
+                </div>
               </div>
               <div id="connList" class="dev-list"></div>
             </div>
@@ -309,6 +321,6 @@
 
     <script src="sprites.js"></script>
     <script src="shops.js"></script>
-    <script src="renderer.js"></script>
+    <script type="module" src="renderer.js"></script>
   </body>
 </html>

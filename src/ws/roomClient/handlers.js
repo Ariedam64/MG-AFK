@@ -340,12 +340,22 @@ const onClose = (client, code, reason) => {
   });
   if (!client.manualClose) {
     const should = client._shouldReconnect(code);
-    if (should) {
-      const scheduled = client._scheduleReconnect(code, reasonText);
-      if (scheduled) return;
+    if (!should) {
+      client.emit('debug', {
+        level: 'info',
+        message: 'reconnect skipped',
+        detail: `code=${code} not enabled in reconnect config`,
+      });
       client.emit('status', { state: 'disconnected', ...info });
       return;
     }
+    const scheduled = client._scheduleReconnect(code, reasonText);
+    if (scheduled) return;
+    client.emit('debug', {
+      level: 'warn',
+      message: 'reconnect exhausted',
+      detail: `code=${code} retry=${client.retryCount}/${client._getMaxRetries(code)}`,
+    });
     client.emit('status', { state: 'disconnected', ...info });
     return;
   }
