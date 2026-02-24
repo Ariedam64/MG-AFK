@@ -177,6 +177,7 @@ export const applySessionToUI = (session) => {
   }
 
   setConnected(session, Boolean(session.connected));
+  cookieInput.disabled = Boolean(session.busy);
 
   setStatusChip(session.status || 'idle');
   errorText.textContent = session.error || '';

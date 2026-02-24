@@ -32,7 +32,6 @@ contextBridge.exposeInMainWorld('api', {
   assetsManifest: () => ipcRenderer.invoke('assets:manifest'),
   assetsJson: (path) => ipcRenderer.invoke('assets:json', { path }),
   assetsImage: (path) => ipcRenderer.invoke('assets:image', { path }),
-  authCheck: () => ipcRenderer.invoke('auth:check'),
-  login: () => ipcRenderer.invoke('auth:login'),
-  clearToken: () => ipcRenderer.invoke('auth:clearToken'),
+  authLogin: () => ipcRenderer.invoke('auth:login'),
+  authClearToken: () => ipcRenderer.invoke('auth:clearToken'),
 });

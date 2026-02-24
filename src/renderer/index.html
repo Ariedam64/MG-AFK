@@ -56,12 +56,12 @@
             <span id="statusChip" class="chip chip-idle">Offline</span>
           </div>
           <div class="form-grid">
-            <div class="field-inline">
+            <input id="cookieInput" type="hidden" />
+            <div class="field-inline auth-row">
               <span>Account</span>
-              <div class="cookie-field-row">
-                <input id="cookieInput" type="hidden" />
-<button id="loginBtn" class="login-btn" type="button" title="Log in with Discord">Login</button>
-                <button id="logoutBtn" class="login-btn logout-btn hidden" type="button" title="Log out and clear session">Logout</button>
+              <div class="auth-buttons">
+                <button id="loginBtn" class="primary small">Login</button>
+                <button id="logoutBtn" class="secondary small hidden">Logout</button>
               </div>
             </div>
             <label class="field-inline">

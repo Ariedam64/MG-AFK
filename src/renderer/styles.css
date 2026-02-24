@@ -441,42 +441,14 @@ body::after {
   box-shadow: 0 0 0 3px rgba(244, 178, 62, 0.15);
 }
 
-.cookie-field-row {
+.auth-buttons {
   display: flex;
   gap: 6px;
-  min-width: 0;
-}
-
-.cookie-field-row .login-btn {
   flex: 1;
 }
 
-.login-btn {
-  background: #0f151b;
-  border: 1px solid var(--stroke);
-  border-radius: 7px;
-  padding: 5px 10px;
-  font-size: 0.7rem;
-  color: var(--muted);
-  cursor: pointer;
-  white-space: nowrap;
-  flex-shrink: 0;
-  transition: border-color 0.15s ease, color 0.15s ease;
-}
-
-.login-btn:hover:not(:disabled) {
-  border-color: rgba(244, 178, 62, 0.5);
-  color: var(--text);
-}
-
-.login-btn:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.logout-btn:hover:not(:disabled) {
-  border-color: rgba(240, 80, 80, 0.5);
-  color: #f09090;
+.auth-buttons button {
+  flex: 1;
 }
 
 .form-row {
