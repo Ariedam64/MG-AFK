@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(curl -s \"https://api.github.com/repos/Umm12many/umgst/contents/src/index.js\" -H \"Accept: application/vnd.github.v3.raw\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Umm12many/umgst/main/src/index.js\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Umm12many/umgst/main/src/preload.js\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Umm12many/umgst/main/src/Success.html\")",
+      "Bash(curl -s \"https://api.github.com/repos/Umm12many/umgst/contents/src\")",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s \"https://api.github.com/repos/Umm12many/umgst/git/trees/main?recursive=1\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Umm12many/umgst/master/src/index.js\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Umm12many/umgst/master/src/preload.js\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Umm12many/umgst/master/src/Success.html\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Umm12many/umgst/master/README.md\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Umm12many/umgst/master/src/index.css\")",
+      "Bash(curl -s \"https://api.github.com/repos/Umm12many/umgst/contents/examples/html\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Umm12many/umgst/master/examples/html/index.html\")",
+      "Read(//c/Users/Romann/AppData/Roaming//**)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\Romann\\AppData\\Roaming\\mgafk\\Partitions\\mgafk-auth"
+    ]
+  }
+}

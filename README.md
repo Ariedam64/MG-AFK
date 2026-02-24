@@ -7,39 +7,24 @@ performed and no interaction with the game is possible.
 
 ## How it works
 
-MG AFK connects to the game's WebSocket endpoint. You must provide your Discord
-`mc_jwt` cookie token because the WebSocket requires it for authentication.
-Incoming data is formatted and displayed in the interface (status, ability logs,
-shops, pet hunger).
+MG AFK connects to the game's WebSocket endpoint and authenticates using your
+Discord account. Incoming data is formatted and displayed in the interface
+(status, ability logs, shops, pet hunger).
+
+## Login
+
+Click the **Login** button in the Connection card. A browser window will open
+directly on Discord's OAuth page — log in with Discord and the app captures
+your session token automatically. The token is stored persistently so you only
+need to log in once.
+
+To log out, click **Logout**. This clears the stored token from the app.
 
 ## Multiple accounts
 
 MG AFK supports running multiple sessions at the same time. Use the tabs bar to
 add a new account (+) and switch between sessions. Each tab keeps its own
-cookie, room code, and reconnect settings.
-
-## How to get your `mc_jwt` token
-
-The easiest way is to use a browser extension that can read cookies:
-
-- Chrome: **Get cookies.txt (Clean)**  
-  https://chromewebstore.google.com/detail/get-cookiestxt-clean/ahmnmhfbokciafffnknlekllgcnafnie
-- Firefox: **Get Cookies**  
-  https://addons.mozilla.org/en-US/firefox/addon/get_cookies/
-
-Steps:
-1) Install the extension.
-2) Open Magic Garden (or the Discord activity) in your browser and log in.
-3) Use the extension to list the cookies for the site.
-4) Find the cookie named **`mc_jwt`**. It should start with something like **`eyJh...`**
-   and it is very long.
-5) Copy its value and paste it into MG AFK.
-
-Manual method (no extension):
-1) Open Magic Garden in your browser and log in.
-2) Press `F12` to open DevTools.
-3) Go to **Application** → **Cookies** → `https://magicgarden.gg`.
-4) Copy the value of the **`mc_jwt`** cookie.
+login, room code, and reconnect settings.
 
 ## Alerts
 
@@ -85,6 +70,6 @@ Build portable Windows executable:
 npm run dist
 ```
 
-The portable `.exe` will be created in `dist/` (e.g. `mgafk-portable-1.0.0.exe`).
+The portable `.exe` will be created in `dist/` (e.g. `mgafk-portable-1.5.0.exe`).
 
 To download a ready-made `.exe`, go to the GitHub Releases section of the repo.
