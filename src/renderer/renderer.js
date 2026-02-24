@@ -1,6 +1,8 @@
 import { DEFAULT_GAME_URL, RECONNECT_GROUPS, RECONNECT_DELAY_KEYS, RECONNECT_DELAY_LIMITS } from './lib/constants.js';
 import {
   cookieInput,
+  loginBtn,
+  logoutBtn,
   roomInput,
   toggleBtn,
   errorText,
@@ -88,8 +90,19 @@ import {
 import { renderTabs } from './lib/tabs.js';
 import { runUpdateCheck } from './lib/update.js';
 
+// Hoisted with function declaration so it can be used as a callback before init.
+function syncAuthButtons() {
+  const hasToken = !!cookieInput.value.trim();
+  loginBtn?.classList.toggle('hidden', hasToken);
+  logoutBtn?.classList.toggle('hidden', !hasToken);
+  const session = getActiveSession();
+  if (toggleBtn && !session?.connected) {
+    toggleBtn.disabled = !hasToken || Boolean(session?.busy);
+  }
+}
+
 // Wire cross-module callbacks to break circular dependency
-setCallbacks({ applyAlertStateToUI, renderTabs });
+setCallbacks({ applyAlertStateToUI, renderTabs, syncAuthButtons });
 
 // --- Init ---
 loadSessions(maybeMigrateLegacyAlerts);
@@ -99,8 +112,31 @@ window.spriteResolver?.preload?.();
 setupReconnectAnimation(scheduleResize);
 
 // --- DOM event listeners ---
-cookieInput.addEventListener('input', saveInputs);
+cookieInput.addEventListener('input', () => { saveInputs(); syncAuthButtons(); });
 roomInput?.addEventListener('input', saveInputs);
+
+loginBtn?.addEventListener('click', async () => {
+  loginBtn.disabled = true;
+  loginBtn.textContent = '...';
+  try {
+    const result = await window.api.login();
+    if (result?.token) {
+      cookieInput.value = result.token;
+      cookieInput.dispatchEvent(new Event('input'));
+    }
+  } finally {
+    loginBtn.disabled = false;
+    loginBtn.textContent = 'Login';
+  }
+});
+
+logoutBtn?.addEventListener('click', async () => {
+  logoutBtn.disabled = true;
+  await window.api.clearToken().catch(() => {});
+  cookieInput.value = '';
+  cookieInput.dispatchEvent(new Event('input'));
+  logoutBtn.disabled = false;
+});
 
 logSearchInput?.addEventListener('input', () => {
   const session = getActiveSession();
@@ -484,7 +520,22 @@ window.api.onShops?.((payload) => {
 });
 
 // --- Layout & resize ---
-document.fonts.ready.then(() => {
+
+// Start auth check immediately (runs in parallel with font loading).
+// Only needed if the active session has no token already stored.
+const authCheckPromise = !cookieInput.value.trim()
+  ? window.api.authCheck().catch(() => null)
+  : Promise.resolve(null);
+
+document.fonts.ready.then(async () => {
+  // Wait for auth check (already in-flight, so typically instant).
+  const authResult = await authCheckPromise;
+  if (authResult?.token && !cookieInput.value.trim()) {
+    cookieInput.value = authResult.token;
+    cookieInput.dispatchEvent(new Event('input'));
+  }
+  syncAuthButtons();
+
   syncLogHeight();
   scheduleResize();
   requestAnimationFrame(() => {

@@ -56,14 +56,14 @@
             <span id="statusChip" class="chip chip-idle">Offline</span>
           </div>
           <div class="form-grid">
-            <label class="field-inline">
-              <span>mc_jwt</span>
-              <input
-                id="cookieInput"
-                type="password"
-                placeholder="mc_jwt=..."
-              />
-            </label>
+            <div class="field-inline">
+              <span>Account</span>
+              <div class="cookie-field-row">
+                <input id="cookieInput" type="hidden" />
+<button id="loginBtn" class="login-btn" type="button" title="Log in with Discord">Login</button>
+                <button id="logoutBtn" class="login-btn logout-btn hidden" type="button" title="Log out and clear session">Logout</button>
+              </div>
+            </div>
             <label class="field-inline">
               <span>Room code (optional)</span>
               <input id="roomInput" type="text" placeholder="Auto room" />

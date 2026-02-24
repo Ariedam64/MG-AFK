@@ -37,10 +37,12 @@ import { updateWeatherIcon } from './weather.js';
 
 let _applyAlertStateToUI = null;
 let _renderTabs = null;
+let _syncAuthButtons = null;
 
-export const setCallbacks = ({ applyAlertStateToUI, renderTabs }) => {
+export const setCallbacks = ({ applyAlertStateToUI, renderTabs, syncAuthButtons }) => {
   _applyAlertStateToUI = applyAlertStateToUI;
   _renderTabs = renderTabs;
+  _syncAuthButtons = syncAuthButtons;
 };
 
 const buildSessionName = (index) => `Account ${index}`;
@@ -124,7 +126,6 @@ export const setConnected = (session, value) => {
   toggleBtn.textContent = value ? 'Disconnect' : 'Connect';
   toggleBtn.classList.toggle('secondary', value);
   toggleBtn.classList.toggle('primary', !value);
-  cookieInput.disabled = value;
   if (roomInput) roomInput.disabled = value;
 };
 
@@ -176,7 +177,6 @@ export const applySessionToUI = (session) => {
   }
 
   setConnected(session, Boolean(session.connected));
-  toggleBtn.disabled = Boolean(session.busy);
 
   setStatusChip(session.status || 'idle');
   errorText.textContent = session.error || '';
@@ -199,6 +199,7 @@ export const applySessionToUI = (session) => {
   renderConnLogs(session);
   renderShops(session.shops || { seed: [], tool: [], egg: [], decor: [], restock: {} });
   if (_applyAlertStateToUI) _applyAlertStateToUI();
+  _syncAuthButtons?.();
 
   if (!session.reconnect) session.reconnect = clone(DEFAULT_RECONNECT);
   setReconnectState(session.reconnect);

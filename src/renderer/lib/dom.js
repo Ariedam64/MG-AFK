@@ -1,4 +1,6 @@
 export const cookieInput = document.getElementById('cookieInput');
+export const loginBtn = document.getElementById('loginBtn');
+export const logoutBtn = document.getElementById('logoutBtn');
 export const roomInput = document.getElementById('roomInput');
 export const toggleBtn = document.getElementById('toggleBtn');
 export const errorText = document.getElementById('errorText');
