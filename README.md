@@ -14,7 +14,7 @@ Discord account. Incoming data is formatted and displayed in the interface
 ## Login
 
 Click the **Login** button in the Connection card. A browser window will open
-directly on Discord's OAuth page — log in with Discord and the app captures
+directly on Discord's OAuth page, log in with Discord and the app captures
 your session token automatically. The token is stored persistently so you only
 need to log in once.
 
