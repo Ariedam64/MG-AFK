@@ -56,7 +56,6 @@
             <span id="statusChip" class="chip chip-idle">Offline</span>
           </div>
           <div class="form-grid">
-            <input id="cookieInput" type="hidden" />
             <div class="field-inline auth-row">
               <span>Account</span>
               <div class="auth-buttons">
@@ -64,6 +63,10 @@
                 <button id="logoutBtn" class="secondary small hidden">Logout</button>
               </div>
             </div>
+            <label class="field-inline">
+              <span>mc_jwt</span>
+              <input id="cookieInput" type="password" placeholder="eyJhbGciOiJIUzI1..." />
+            </label>
             <label class="field-inline">
               <span>Room code (optional)</span>
               <input id="roomInput" type="text" placeholder="Auto room" />
