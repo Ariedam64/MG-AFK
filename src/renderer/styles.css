@@ -1118,6 +1118,29 @@ button:disabled {
   opacity: 0;
 }
 
+.shop-item-alert {
+  position: relative;
+  background: linear-gradient(90deg, rgba(244, 178, 62, 0.08) 0%, transparent 80%);
+  border-radius: 4px;
+  padding-left: 10px;
+}
+
+.shop-item-alert::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 20%;
+  bottom: 20%;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+  opacity: 0.7;
+}
+
+.shop-item-alert .label {
+  color: var(--accent);
+}
+
 .shop-item:last-child,
 .shop-empty:last-child {
   border-bottom: none;

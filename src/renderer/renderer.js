@@ -519,6 +519,7 @@ window.api.onShops?.((payload) => {
         decor: { list: shopDecorList, restock: shopDecorRestock },
       },
       payload,
+      alertState.selected || {},
     );
   }
 });

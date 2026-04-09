@@ -8,7 +8,9 @@
     return `${pad(mm)}:${pad(ss)}`;
   };
 
-  const renderList = (container, items, emptyText, shopKey) => {
+  const alertKey = (shop, item) => `${shop}|${item}`;
+
+  const renderList = (container, items, emptyText, shopKey, selectedAlerts) => {
     if (!container) return;
     container.innerHTML = '';
     if (!Array.isArray(items) || items.length === 0) {
@@ -19,8 +21,10 @@
       return;
     }
     items.forEach((item) => {
+      const hasAlert = Boolean(selectedAlerts[alertKey(shopKey, item.name)]);
+
       const row = document.createElement('div');
-      row.className = 'shop-item';
+      row.className = 'shop-item' + (hasAlert ? ' shop-item-alert' : '');
 
       const labelWrap = document.createElement('span');
       labelWrap.className = 'item-label';
@@ -65,19 +69,19 @@
     });
   };
 
-  const renderShop = (slot, items, restock, emptyText, shopKey) => {
+  const renderShop = (slot, items, restock, emptyText, shopKey, selectedAlerts) => {
     if (!slot) return;
-    renderList(slot.list, items, emptyText, shopKey);
+    renderList(slot.list, items, emptyText, shopKey, selectedAlerts);
     if (slot.restock) slot.restock.textContent = formatRestock(restock);
   };
 
-  const renderShops = (containers, payload) => {
+  const renderShops = (containers, payload, selectedAlerts = {}) => {
     if (!payload || !containers) return;
     const restock = payload.restock || {};
-    renderShop(containers.seed, payload.seed, restock.seed, 'No seeds', 'seed');
-    renderShop(containers.tool, payload.tool, restock.tool, 'No tools', 'tool');
-    renderShop(containers.egg, payload.egg, restock.egg, 'No eggs', 'egg');
-    renderShop(containers.decor, payload.decor, restock.decor, 'No decor', 'decor');
+    renderShop(containers.seed, payload.seed, restock.seed, 'No seeds', 'seed', selectedAlerts);
+    renderShop(containers.tool, payload.tool, restock.tool, 'No tools', 'tool', selectedAlerts);
+    renderShop(containers.egg, payload.egg, restock.egg, 'No eggs', 'egg', selectedAlerts);
+    renderShop(containers.decor, payload.decor, restock.decor, 'No decor', 'decor', selectedAlerts);
   };
 
   window.shopsView = {
