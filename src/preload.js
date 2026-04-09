@@ -29,9 +29,6 @@ contextBridge.exposeInMainWorld('api', {
   checkUpdate: () => ipcRenderer.invoke('app:checkUpdate'),
   openExternal: (url) => ipcRenderer.invoke('app:openExternal', url),
   notify: (payload) => ipcRenderer.invoke('app:notify', payload),
-  assetsManifest: () => ipcRenderer.invoke('assets:manifest'),
-  assetsJson: (path) => ipcRenderer.invoke('assets:json', { path }),
-  assetsImage: (path) => ipcRenderer.invoke('assets:image', { path }),
   authLogin: () => ipcRenderer.invoke('auth:login'),
   authClearToken: () => ipcRenderer.invoke('auth:clearToken'),
 });

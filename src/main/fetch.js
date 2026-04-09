@@ -115,8 +115,6 @@ const compareVersions = (a, b) => {
 module.exports = {
   REPO_OWNER,
   REPO_NAME,
-  fetchAssetBuffer,
-  fetchAssetJson,
   fetchLatestRelease,
   normalizeVersion,
   parseVersion,

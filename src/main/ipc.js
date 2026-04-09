@@ -6,13 +6,9 @@ const DISCORD_OAUTH_URL = 'https://discord.com/oauth2/authorize?client_id=122771
 let authWin = null;
 
 const { fetchGameVersion } = require('../assets/gameVersion');
-const { getAssetUrl } = require('../assets/assets');
-const { loadManifest } = require('../assets/manifest');
 const { getClient, resolveSessionId, disposeClient } = require('./clients');
 const { getTrayIconPath, setSession, setActiveSessionId, setUpdateStatus } = require('./tray');
 const {
-  fetchAssetBuffer,
-  fetchAssetJson,
   fetchLatestRelease,
   normalizeVersion,
   parseVersion,
@@ -208,29 +204,6 @@ const register = ({ getMainWindow, emitDebug, getTray }) => {
     return Boolean(tray);
   });
 
-  ipcMain.handle('assets:manifest', async () => {
-    try { return await loadManifest(); } catch { return null; }
-  });
-
-  ipcMain.handle('assets:json', async (event, payload) => {
-    const relativePath = String(payload?.path || '').trim();
-    if (!relativePath) return null;
-    const url = await getAssetUrl(relativePath);
-    if (!url) return null;
-    try { return await fetchAssetJson(url); } catch { return null; }
-  });
-
-  ipcMain.handle('assets:image', async (event, payload) => {
-    const relativePath = String(payload?.path || '').trim();
-    if (!relativePath) return null;
-    const url = await getAssetUrl(relativePath);
-    if (!url) return null;
-    try {
-      const { buffer, contentType } = await fetchAssetBuffer(url);
-      const mime = String(contentType || 'image/png').split(';')[0] || 'image/png';
-      return { dataUrl: `data:${mime};base64,${buffer.toString('base64')}` };
-    } catch { return null; }
-  });
 
   ipcMain.on('tray:session', (event, payload) => {
     const id = resolveSessionId(payload?.id);

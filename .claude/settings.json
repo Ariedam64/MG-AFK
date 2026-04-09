@@ -18,7 +18,11 @@
       "Bash(curl -s \"https://raw.githubusercontent.com/Umm12many/umgst/master/src/index.css\")",
       "Bash(curl -s \"https://api.github.com/repos/Umm12many/umgst/contents/examples/html\")",
       "Bash(curl -s \"https://raw.githubusercontent.com/Umm12many/umgst/master/examples/html/index.html\")",
-      "Read(//c/Users/Romann/AppData/Roaming//**)"
+      "Read(//c/Users/Romann/AppData/Roaming//**)",
+      "Bash(npm run dist)",
+      "Bash(git add package.json src/main/ipc.js src/preload.js src/renderer/index.html src/renderer/lib/sessions.js src/renderer/lib/dom.js src/renderer/renderer.js src/renderer/styles.css)",
+      "Bash(git push)",
+      "Bash(git add package.json src/renderer/index.html)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Romann\\AppData\\Roaming\\mgafk\\Partitions\\mgafk-auth"

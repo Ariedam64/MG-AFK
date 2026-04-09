@@ -108,7 +108,6 @@ setCallbacks({ applyAlertStateToUI, renderTabs, syncAuthButtons });
 loadSessions(maybeMigrateLegacyAlerts);
 syncAllTraySessions();
 setActiveSession(activeSessionId.value);
-window.spriteResolver?.preload?.();
 setupReconnectAnimation(scheduleResize);
 
 // --- DOM event listeners ---
