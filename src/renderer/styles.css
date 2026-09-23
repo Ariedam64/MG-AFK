@@ -1563,6 +1563,28 @@ button:disabled {
   opacity: 1;
 }
 
+.startup-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.startup-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.startup-check input[type='checkbox'] {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
 
 @keyframes fadeUp {
   from {

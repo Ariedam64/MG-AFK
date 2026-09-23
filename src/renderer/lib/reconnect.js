@@ -82,11 +82,16 @@ export const updateReconnectUI = () => {
   });
 };
 
-export const buildReconnectConfig = () => ({
-  delays: { ...reconnectState.delays },
-  unknown: reconnectState.unknown,
-  codes: { ...reconnectState.codes },
-});
+export const buildReconnectConfig = () => buildReconnectConfigFor(reconnectState);
+
+export const buildReconnectConfigFor = (state) => {
+  const src = normalizeReconnect(state);
+  return {
+    delays: { ...src.delays },
+    unknown: src.unknown,
+    codes: { ...src.codes },
+  };
+};
 
 export const setupReconnectAnimation = (scheduleResizeFn) => {
   if (!reconnectDetails || !reconnectBody) return;

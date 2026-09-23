@@ -7,6 +7,8 @@ const ipc = require('./main/ipc');
 
 let mainWindow = null;
 let isQuitting = false;
+const startHidden =
+  process.argv.includes('--hidden') || process.argv.includes('--minimized');
 
 const getMainWindow = () => mainWindow;
 const setIsQuitting = (value) => { isQuitting = value; };
@@ -39,6 +41,7 @@ const createWindow = () => {
     useContentSize: true,
     resizable: false,
     autoHideMenuBar: true,
+    show: !startHidden,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -66,13 +69,30 @@ clients.init({ sendToRenderer, emitDebug });
 ipc.register({ getMainWindow, emitDebug, getTray: tray.getTray });
 
 // --- App lifecycle ---
-app.whenReady().then(() => {
-  app.setAppUserModelId('com.mgafk.app');
-  app.setName('MG AFK');
-  process.title = 'MG AFK';
-  createWindow();
-  tray.createTray();
-});
+// Single instance: a second launch (e.g. user double-clicks while the
+// background instance runs) just reopens the existing window instead of
+// starting a competing session that would supersede the live connection.
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    const win = getMainWindow();
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.show();
+      win.focus();
+    }
+  });
+
+  app.whenReady().then(() => {
+    app.setAppUserModelId('com.mgafk.app');
+    app.setName('MG AFK');
+    process.title = 'MG AFK';
+    createWindow();
+    tray.createTray();
+  });
+}
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();

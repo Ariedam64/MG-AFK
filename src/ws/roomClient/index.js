@@ -6,6 +6,8 @@ const {
   DEFAULT_HOST,
   DEFAULT_VERSION,
   DEFAULT_UA,
+  DEFAULT_CAPABILITIES,
+  DEFAULT_LOCALE,
   RETRY_MAX,
   RETRY_DELAY_MS,
   RETRY_JITTER_MS,
@@ -40,6 +42,8 @@ class RoomClient extends EventEmitter {
     this.appPing = null;
     this.socketToken = 0;
     this.welcomed = false;
+    this.clientDocumentId = null;
+    this.clientConnectionAttempt = 0;
     this.manualClose = false;
     this.gameState = null;
     this.playerIndex = -1;
@@ -137,6 +141,18 @@ class RoomClient extends EventEmitter {
     this.cookie = nextCookie;
     this.userAgent = userAgent || DEFAULT_UA;
     this.playerId = generatePlayerId();
+    // Stable per client instance across reconnects, like the web client's
+    // `clientDocumentId = crypto.randomUUID()` field. The server uses it to
+    // track (and reclaim) sessions.
+    if (!this.clientDocumentId) {
+      try {
+        this.clientDocumentId = require('crypto').randomUUID();
+      } catch (err) {
+        this.clientDocumentId = `mgafk-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+      }
+    }
+    // Incremented on every (re)connect, first attempt sends 1.
+    this.clientConnectionAttempt = (this.clientConnectionAttempt || 0) + 1;
     this.roomState = null;
     this.playerCount = 0;
     this.connectedAt = 0;
@@ -165,6 +181,12 @@ class RoomClient extends EventEmitter {
       version: this.version,
       room: this.room,
       playerId: this.playerId,
+      clientDocumentId: this.clientDocumentId,
+      clientConnectionAttempt: this.clientConnectionAttempt,
+      clientNavigationType: 'navigate',
+      clientVisibilityState: 'visible',
+      locale: DEFAULT_LOCALE,
+      capabilities: DEFAULT_CAPABILITIES,
     });
 
     this.state = 'reconnecting';

@@ -26,6 +26,8 @@ import {
   reconnectInputs,
   reconnectDelayInputs,
   reconnectDelayValues,
+  autoConnectCheck,
+  autoLaunchCheck,
   appRoot,
   playerIdValue,
   playerNameValue,
@@ -59,6 +61,7 @@ import {
   reconnectState,
   setupReconnectAnimation,
   buildReconnectConfig,
+  buildReconnectConfigFor,
 } from './lib/reconnect.js';
 import { syncTraySession, syncAllTraySessions } from './lib/tray.js';
 import {
@@ -244,6 +247,23 @@ reconnectInputs.forEach((input) => {
 
 checkUpdateBtn?.addEventListener('click', async () => {
   await runUpdateCheck({ showProgress: true });
+});
+
+autoConnectCheck?.addEventListener('change', () => {
+  const session = getActiveSession();
+  if (!session) return;
+  session.autoConnect = Boolean(autoConnectCheck.checked);
+  persistSessions();
+});
+
+autoLaunchCheck?.addEventListener('change', async () => {
+  const enabled = Boolean(autoLaunchCheck.checked);
+  try {
+    const result = await window.api.setAutoLaunch?.(enabled);
+    autoLaunchCheck.checked = Boolean(result);
+  } catch {
+    autoLaunchCheck.checked = !enabled;
+  }
 });
 
 openUpdateBtn?.addEventListener('click', async () => {
@@ -524,6 +544,50 @@ window.api.onShops?.((payload) => {
   }
 });
 
+// --- Startup: auto-launch state + auto-connect ---
+const autoConnectSession = async (session) => {
+  if (!session || session.busy || session.connected) return;
+  if (!session.cookie) return;
+  resetSessionStats(session);
+  session.status = 'connecting';
+  session.connected = false;
+  session.error = '';
+  session.reconnectCountdown = '';
+  session.logs = [];
+  setBusy(session, true);
+  if (session === getActiveSession()) applySessionToUI(session);
+  syncTraySession(session);
+  try {
+    const result = await window.api.connect({
+      sessionId: session.id,
+      cookie: session.cookie,
+      room: session.room || undefined,
+      reconnect: buildReconnectConfigFor(session.reconnect),
+    });
+    if (result && result.playerId) {
+      session.playerId = result.playerId;
+      if (session === getActiveSession()) playerIdValue.textContent = result.playerId;
+    }
+    if (result && result.error) {
+      session.error = result.error;
+      if (session === getActiveSession()) setError(result.error);
+    }
+  } finally {
+    setBusy(session, false);
+  }
+};
+
+const autoConnectOnStartup = () => {
+  let delayMs = 0;
+  for (const session of sessions) {
+    if (!session.autoConnect || !session.cookie) continue;
+    if (session.connected || session.busy) continue;
+    const target = session;
+    setTimeout(() => { void autoConnectSession(target); }, delayMs);
+    delayMs += 800;
+  }
+};
+
 // --- Layout & resize ---
 
 document.fonts.ready.then(() => {
@@ -538,6 +602,10 @@ document.fonts.ready.then(() => {
     if (loader) loader.addEventListener('transitionend', () => loader.remove(), { once: true });
   });
   runUpdateCheck({ showProgress: false });
+  window.api.getAutoLaunch?.().then((value) => {
+    if (autoLaunchCheck) autoLaunchCheck.checked = Boolean(value);
+  }).catch(() => {});
+  setTimeout(autoConnectOnStartup, 2000);
 });
 
 if (appRoot && 'ResizeObserver' in window) {
