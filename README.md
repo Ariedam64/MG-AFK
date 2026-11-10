@@ -1,5 +1,7 @@
 # MG AFK
 
+> **No longer maintained.** This desktop app is archived. The [Android app](https://github.com/Ariedam64/mg-afk-android) is the actively maintained version of MG AFK. Thanks to NurYahyaAkhmad for porting the client to the game's newer protocol (#2).
+
 MG AFK is a lightweight, read-only desktop app that lets you stay connected to
 Magic Garden without launching the game. It keeps a session open to display
 pet ability logs while minimizing CPU/GPU usage. No in-game actions are
