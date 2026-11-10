@@ -3,6 +3,7 @@ import {
   cookieInput,
   roomInput,
   toggleBtn,
+  autoConnectCheck,
   errorText,
   openGameSelect,
   playersValue,
@@ -60,6 +61,7 @@ export const createSession = (seed = {}, index = 1) => {
     cookie: String(seed.cookie || ''),
     room: String(seed.room || ''),
     gameUrl: seed.gameUrl || DEFAULT_GAME_URL,
+    autoConnect: seed.autoConnect === true,
     reconnect: normalizeReconnect(seed.reconnect),
     connected: false,
     busy: false,
@@ -97,6 +99,7 @@ export const persistSessions = () => {
     cookie: session.cookie,
     room: session.room,
     gameUrl: session.gameUrl,
+    autoConnect: session.autoConnect === true,
     reconnect: session.reconnect,
     logQuery: session.logQuery || '',
   }));
@@ -178,6 +181,7 @@ export const applySessionToUI = (session) => {
 
   setConnected(session, Boolean(session.connected));
   cookieInput.disabled = Boolean(session.busy);
+  if (autoConnectCheck) autoConnectCheck.checked = session.autoConnect === true;
 
   setStatusChip(session.status || 'idle');
   errorText.textContent = session.error || '';

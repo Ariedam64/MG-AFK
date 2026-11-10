@@ -192,6 +192,29 @@ const register = ({ getMainWindow, emitDebug, getTray }) => {
     return true;
   });
 
+  ipcMain.handle('app:setAutoLaunch', (event, enabled) => {
+    const { app } = require('electron');
+    app.setLoginItemSettings({
+      openAtLogin: Boolean(enabled),
+      path: process.execPath,
+      args: ['--hidden'],
+    });
+    try {
+      return Boolean(app.getLoginItemStatus().openAtLogin);
+    } catch {
+      return Boolean(enabled);
+    }
+  });
+
+  ipcMain.handle('app:getAutoLaunch', () => {
+    const { app } = require('electron');
+    try {
+      return Boolean(app.getLoginItemStatus().openAtLogin);
+    } catch {
+      return false;
+    }
+  });
+
   ipcMain.handle('app:notify', (event, payload) => {
     const title = payload?.title ? String(payload.title) : 'MG AFK';
     const body = payload?.body ? String(payload.body) : '';

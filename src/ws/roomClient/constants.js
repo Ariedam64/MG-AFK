@@ -6,6 +6,8 @@ const TEXT_MS = 2000;
 const APP_MS = 2000;
 const GAME_NAME = 'Quinoa';
 const DEFAULT_UA = 'Mozilla/5.0';
+const DEFAULT_CAPABILITIES = 'fbo_mipmap_unsupported';
+const DEFAULT_LOCALE = 'en';
 const RETRY_MAX = 15;
 const RETRY_DELAY_MS = 1500;
 const RETRY_JITTER_MS = 1000;
@@ -25,6 +27,8 @@ module.exports = {
   APP_MS,
   GAME_NAME,
   DEFAULT_UA,
+  DEFAULT_CAPABILITIES,
+  DEFAULT_LOCALE,
   RETRY_MAX,
   RETRY_DELAY_MS,
   RETRY_JITTER_MS,

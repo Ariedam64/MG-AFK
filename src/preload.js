@@ -28,6 +28,8 @@ contextBridge.exposeInMainWorld('api', {
   onTrayCheckUpdate: on('tray:check-update'),
   checkUpdate: () => ipcRenderer.invoke('app:checkUpdate'),
   openExternal: (url) => ipcRenderer.invoke('app:openExternal', url),
+  setAutoLaunch: (enabled) => ipcRenderer.invoke('app:setAutoLaunch', enabled),
+  getAutoLaunch: () => ipcRenderer.invoke('app:getAutoLaunch'),
   notify: (payload) => ipcRenderer.invoke('app:notify', payload),
   authLogin: () => ipcRenderer.invoke('auth:login'),
   authClearToken: () => ipcRenderer.invoke('auth:clearToken'),

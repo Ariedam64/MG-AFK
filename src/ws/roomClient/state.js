@@ -8,6 +8,7 @@ const findUserSlotIndex = (room, game, playerId, playerIndex) => {
   const matchesPlayer = (slot) =>
     slot &&
     (slot.playerId === playerId ||
+      slot.userId === playerId ||
       slot?.data?.playerId === playerId);
   const matchesDb = (slot) =>
     dbId &&
@@ -67,7 +68,7 @@ const slimUserSlot = (slot) => {
   if (!slot || typeof slot !== 'object') return null;
   const data = slimUserSlotData(slot.data);
   return {
-    playerId: slot.playerId || data.playerId || data.id || null,
+    playerId: slot.playerId || slot.userId || data.playerId || data.id || null,
     data,
   };
 };

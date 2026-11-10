@@ -16,8 +16,9 @@ const {
 const { isAbilityName } = require('./pets');
 
 const onOpen = (client) => {
-  client._send({ scopePath: ['Room'], type: 'VoteForGame', gameName: GAME_NAME });
-  client._send({ scopePath: ['Room'], type: 'SetSelectedGame', gameName: GAME_NAME });
+  // The current server protocol expects SocketOpened as the first message;
+  // the command session becomes ready when the server answers with Welcome.
+  client._send({ type: 'SocketOpened' });
 
   client.textPing = setInterval(() => {
     client._send('ping');
@@ -50,10 +51,17 @@ const onMessage = (client, data) => {
   }
 
   if (msg.type === 'Welcome' && msg.fullState) {
+    // The server assigns our authoritative player id and reports it as
+    // selfPlayerId; adopt it so slot matching uses the real id.
+    if (typeof msg.selfPlayerId === 'string' && msg.selfPlayerId) {
+      client.playerId = msg.selfPlayerId;
+    }
     const room = msg.fullState?.data || null;
     const game = msg.fullState?.child?.data || null;
     const me = room?.players?.find((p) => p?.id === client.playerId);
-    if (me && me.databaseUserId == null) {
+    // Guest/unauthenticated players carry neither id field. (Current schema
+    // uses discordUserId; older rooms used databaseUserId.)
+    if (me && me.databaseUserId == null && me.discordUserId == null) {
       client._failAuth('Invalid mc_jwt cookie.');
       return;
     }
@@ -83,7 +91,15 @@ const onMessage = (client, data) => {
     return;
   }
 
-  if (msg.type !== 'PartialState' || !Array.isArray(msg.patches)) return;
+  // Live updates arrive as PartialState (legacy) or RoomFrame (current
+  // protocol, patches nested under msg.state.patches).
+  const patches =
+    msg.type === 'PartialState'
+      ? msg.patches
+      : msg.type === 'RoomFrame'
+        ? msg.state?.patches
+        : null;
+  if (!Array.isArray(patches)) return;
 
   const logs = new Map();
   let roomDirty = false;
@@ -100,7 +116,7 @@ const onMessage = (client, data) => {
   const roomFieldRe = /^\/data\/(roomId|roomSessionId|hostPlayerId)(?:$|\/)/;
   const shopEntryRe = /^\/child\/data\/shops\/(seed|tool|egg|decor)$/;
 
-  for (const p of msg.patches) {
+  for (const p of patches) {
     if (!p || typeof p.path !== 'string') continue;
 
     if (client.roomState) {
@@ -179,7 +195,7 @@ const onMessage = (client, data) => {
     }
   }
 
-  for (const p of msg.patches) {
+  for (const p of patches) {
     if (!p || typeof p.path !== 'string') continue;
 
     const m =
